@@ -1,0 +1,38 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=834"><link rel="icon" href="data:,">
+<title>Enrichment & Furnishing · ANTZ</title>
+<!--
+  ANTZ · Enrichment & Furnishing Management — app tablet, 834 × 1194, portrait. One page, hash routes (#/overview, #/register, #/item/EF-0001 …).
+  Load order: kit tokens → type → icons → kit styles → app shell styles → theme (Untitled UI look, Antz colours); icons.js → kit.js → model → seed → shell → screens by phase → main.
+  The flow map of every phase and screen is flow.html.
+-->
+<link rel="stylesheet" href="kit/tokens.css">
+<link rel="stylesheet" href="kit/type.css">
+<link rel="stylesheet" href="kit/icons.css">
+<link rel="stylesheet" href="kit/kit.css">
+<link rel="stylesheet" href="src/app/app.css">
+<link rel="stylesheet" href="src/app/theme.css">
+</head>
+<body>
+<div class="device">
+  <main id="main"></main>
+  <div class="fab-slot" id="fab"></div>
+  <div id="fab-closed"></div>
+  <div id="sheet"></div>
+  <div class="toast-slot" id="toast"></div>
+</div>
+<script src="kit/icons.js"></script>
+<script src="kit/kit.js"></script>
+<script src="src/model/model.js"></script>
+<script src="src/model/seed.js"></script>
+<script src="src/app/shell.js"></script>
+<script src="src/app/screens/phase-1-register.js"></script>
+<script src="src/app/screens/phase-2-lifecycle.js"></script>
+<script src="src/app/screens/phase-3-disposal-audit.js"></script>
+<script src="src/app/screens/phase-4-optimise.js"></script>
+<script src="src/app/main.js"></script>
+</body>
+</html>

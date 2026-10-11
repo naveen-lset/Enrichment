@@ -27,7 +27,7 @@
 <script src="kit/kit.js"></script>
 <script>
 const WHO = { sup: ['P-RAVI', 'Supervisor'], sup2: ['P-LAKS', 'Supervisor'], rec: ['P-ARUN', 'Receiving custodian'], afm: ['P-MEERA', 'AFM'], bio: ['P-ANJ', 'Biologist'], ws: ['P-JOS', 'Workshop / VIC'], mgmt: ['P-SUR', 'Approver'], admin: ['P-NEHA', 'ANTZ admin'] };
-const open = (who, hash) => `index.html?reset=1&as=${WHO[who][0]}${hash}`;
+const open = (who, hash) => `v1.html?reset=1&as=${WHO[who][0]}${hash}`;
 const S = (title, hash, who, ref, kind) => ({ title, hash, who, ref, kind });
 const PHASES = [
   { n: 1, title: 'Configure & register', screens: [
@@ -66,7 +66,7 @@ function draw() {
   const tabs = PHASES.map(p => ({ key: 'p' + p.n, label: 'Phase ' + p.n, count: p.screens.length, href: '#p' + p.n })).concat([{ key: 'flows', label: 'Workflows', count: FLOWS.length, href: '#flows' }]);
   const ph = PHASES.find(p => 'p' + p.n === cur);
   document.getElementById('app').innerHTML =
-    kPageHeader({ title: 'Tablet flow', sub: ph ? `Phase ${ph.n} · ${ph.title}` : `Enrichment & Furnishing · ${PHASES.length} phases · ${total} screens`, actions: kButton({ label: 'Open app', kind: 'primary', href: 'index.html?reset=1' }), tabs, current: cur })
+    kPageHeader({ title: 'Tablet flow', sub: ph ? `Phase ${ph.n} · ${ph.title}` : `Enrichment & Furnishing · ${PHASES.length} phases · ${total} screens`, actions: kButton({ label: 'Open app', kind: 'primary', href: 'v1.html?reset=1' }), tabs, current: cur })
     + (ph ? ph.screens.map(s => kAuditCard({ name: s.title, about: s.hash, status: kPill(s.kind, 'info'), facts: [{ label: 'Role', value: WHO[s.who][1] }, { label: 'PRD', value: s.ref }], href: open(s.who, s.hash) })).join('')
       : FLOWS.map(f => kCard({ eyebrow: '§' + f.ref, title: f.title, body: kTimeline(f.steps.map((s, i) => ({ title: s[0], text: s[1], current: i === f.steps.length - 1 }))) })).join(''));
 }
@@ -76,7 +76,7 @@ draw();
 <script src="kit/kit.js"></script>
 <script>
 const WHO = { sup: ['P-RAVI', 'Supervisor'], sup2: ['P-LAKS', 'Supervisor'], rec: ['P-ARUN', 'Receiving custodian'], afm: ['P-MEERA', 'AFM'], bio: ['P-ANJ', 'Biologist'], ws: ['P-JOS', 'Workshop / VIC'], mgmt: ['P-SUR', 'Approver'], admin: ['P-NEHA', 'ANTZ admin'] };
-const open = (who, hash) => `index.html?reset=1&as=${WHO[who][0]}${hash}`;
+const open = (who, hash) => `v1.html?reset=1&as=${WHO[who][0]}${hash}`;
 const S = (title, hash, who, ref, kind) => ({ title, hash, who, ref, kind });
 const PHASES = [
   { n: 1, title: 'Configure & register', screens: [
@@ -110,7 +110,7 @@ const FLOWS = [
 ];
 const total = PHASES.reduce((n, p) => n + p.screens.length, 0);
 document.getElementById('app').innerHTML =
-  kPageHeader({ title: 'Tablet flow', sub: `Enrichment & Furnishing · ${PHASES.length} phases · ${total} screens`, actions: kButton({ label: 'Open app', kind: 'primary', href: 'index.html?reset=1' }) })
+  kPageHeader({ title: 'Tablet flow', sub: `Enrichment & Furnishing · ${PHASES.length} phases · ${total} screens`, actions: kButton({ label: 'Open app', kind: 'primary', href: 'v1.html?reset=1' }) })
   + PHASES.map(p => kCard({ eyebrow: 'Phase ' + p.n, title: p.title, action: kPill(p.screens.length + ' screens', 'info'),
       body: p.screens.map(s => kAuditCard({ name: s.title, about: s.hash, status: kPill(s.kind, 'info'), facts: [{ label: 'Role', value: WHO[s.who][1] }, { label: 'PRD', value: s.ref }], href: open(s.who, s.hash) })).join('') })).join('')
   + FLOWS.map(f => kCard({ eyebrow: 'Workflow §' + f.ref, title: f.title, body: kTimeline(f.steps.map((s, i) => ({ title: s[0], text: s[1], current: i === f.steps.length - 1 }))) })).join('');

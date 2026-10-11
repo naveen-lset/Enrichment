@@ -2,37 +2,53 @@
 <html lang="en">
 <head>
 <meta charset="utf-8">
-<meta name="viewport" content="width=834"><link rel="icon" href="data:,">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<link rel="icon" href="data:,">
 <title>Enrichment & Furnishing · ANTZ</title>
-<!--
-  ANTZ · Enrichment & Furnishing Management — app tablet, 834 × 1194, portrait. One page, hash routes (#/overview, #/register, #/item/EF-0001 …).
-  Load order: kit tokens → type → icons → kit styles → app shell styles → theme (Untitled UI look, Antz colours); icons.js → kit.js → model → seed → shell → screens by phase → main.
-  The flow map of every phase and screen is flow.html.
--->
+<!-- ANTZ · Enrichment & Furnishing Management — tablet prototype (iPad landscape 1194 × 834 / portrait 834 × 1194).
+     On a desktop it shows inside a tablet frame; on a tablet, or with ?bare=1, it fills the screen.
+     Rules: src/model/model.js (PRD) · prototype work layer: src/model/work.js · UI: src/ipad/*. Docs: docs/WORKFLOWS.md -->
+<link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;650;700&display=swap">
 <link rel="stylesheet" href="kit/tokens.css">
-<link rel="stylesheet" href="kit/type.css">
-<link rel="stylesheet" href="kit/icons.css">
-<link rel="stylesheet" href="kit/kit.css">
-<link rel="stylesheet" href="src/app/app.css">
-<link rel="stylesheet" href="src/app/theme.css">
+<link rel="stylesheet" href="src/ipad/ipad.css">
 </head>
 <body>
-<div class="device">
-  <main id="main"></main>
-  <div class="fab-slot" id="fab"></div>
-  <div id="fab-closed"></div>
-  <div id="sheet"></div>
-  <div class="toast-slot" id="toast"></div>
+<div class="desk">
+  <div class="desk-bar">
+    <div class="desk-bar__brand"><span class="logo" style="width:28px;height:28px;border-radius:8px"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M11 20A7 7 0 0 1 9.8 6.1C15.5 5 17 4.48 19 2c1 2 2 4.18 2 8 0 5.5-4.78 10-10 10Z"/><path d="M2 21c0-3 1.85-5.36 5.08-6C9.5 14.52 12 13 13 12"/></svg></span>Enrichment & Furnishing<span>Prototype · sample data</span></div>
+    <div class="seg" data-id="orient" id="orient"></div>
+    <button class="desk-btn" data-do="guide">Demo guide</button>
+    <button class="desk-btn" data-do="reset">Reset</button>
+  </div>
+  <div class="desk-stage" id="stage">
+    <div class="ipad-fit" id="fit">
+      <div class="ipad" id="ipad" data-o="landscape">
+        <div class="screen" id="screen">
+          <div class="statusbar"><div class="statusbar__l"><span id="clock">10:00</span><span id="sdate">Sat 10 Oct</span></div><div class="statusbar__r"><svg width="17" height="12" viewBox="0 0 17 12" fill="currentColor"><path d="M8.5 2.3c2.4 0 4.6.9 6.2 2.5l1.2-1.2A10.4 10.4 0 0 0 8.5.6 10.4 10.4 0 0 0 1.1 3.6l1.2 1.2a8.7 8.7 0 0 1 6.2-2.5Zm0 3.4c1.5 0 2.8.6 3.8 1.5l1.2-1.2a7 7 0 0 0-10 0l1.2 1.2c1-.9 2.3-1.5 3.8-1.5Zm0 3.4c.6 0 1.1.2 1.5.6L8.5 11.2 7 9.7c.4-.4.9-.6 1.5-.6Z"/></svg><span>78%</span><span class="battery"><i></i></span></div></div>
+          <div class="app" id="app">
+            <aside class="sb" id="sb"></aside>
+            <div class="sb-scrim" data-do="peekClose"></div>
+            <div class="main" id="main"></div>
+            <div id="slide"></div>
+          </div>
+          <div id="sheet"></div>
+          <div id="pop"></div>
+          <div class="toast-slot" id="toast"></div>
+        </div>
+      </div>
+    </div>
+  </div>
 </div>
-<script src="kit/icons.js"></script>
-<script src="kit/kit.js"></script>
+<script src="src/ipad/icons.js"></script>
 <script src="src/model/model.js"></script>
 <script src="src/model/seed.js"></script>
-<script src="src/app/shell.js"></script>
-<script src="src/app/screens/phase-1-register.js"></script>
-<script src="src/app/screens/phase-2-lifecycle.js"></script>
-<script src="src/app/screens/phase-3-disposal-audit.js"></script>
-<script src="src/app/screens/phase-4-optimise.js"></script>
-<script src="src/app/main.js"></script>
+<script src="src/model/seed-demo.js"></script>
+<script src="src/model/work.js"></script>
+<script src="src/ipad/core.js"></script>
+<script src="src/ipad/views.js"></script>
+<script src="src/ipad/actions.js"></script>
+<script src="src/ipad/main.js"></script>
 </body>
 </html>

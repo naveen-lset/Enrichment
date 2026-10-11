@@ -148,6 +148,8 @@ function boot(now) {
   at('2026-10-08T09:00'); flagIssue(nest3, 'P-LAKS', { issue: 'Wear', cond: 'damaged', notes: 'Cracked roof panel', photos: [photo('Cracked roof')] });
   at('2026-10-08T15:00'); const d5 = requestDisposal(hammock, 'P-LAKS', { reason: 'Worn out', cond: 'damaged', photos: [photo('Frayed weave')], approver: 'P-SUR' });
 
+  if (typeof extendDemo === 'function') extendDemo('early');   // the iPad app adds more demo records here (src/model/seed-demo.js); tests do not load it
+
   // Q4 audit: in progress, one item not found (assigned), one location mismatch (not assigned yet)
   at('2026-10-08T16:00'); const q4 = createAudit('P-MEERA', { site: 'S-MAIN', period: 'Q4 2026', due: '2026-10-31', auditor: 'P-MEERA' });
   at('2026-10-09T09:00');
@@ -164,6 +166,7 @@ function boot(now) {
   ticket('TK-2051', 'Stainless steel feeder', 'CAT-A', 3, 'SEC-PRI', '2026-10-09T15:00', 'WS-322', 'MT-7741', 'P-ANJ');
   ticket('TK-2053', 'Natural perches', 'CAT-C', 40, 'SEC-BRD', '2026-10-10T08:00', '', 'MT-7745', 'P-ANJ');
 
+  if (typeof extendDemo === 'function') extendDemo('late');
   setNow(now || NOW_DEFAULT);
   return D;
 }
