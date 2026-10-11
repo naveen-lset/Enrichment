@@ -2,6 +2,8 @@
 
 An interactive iPad prototype of the **ANTZ Enrichment & Furnishing Management** module (PRD v1.0, 10 Oct 2026). It covers the full lifecycle of enrichment items and furnishings in a zoo: receipt, registration, move, repair, transfer, scheduled audit, disposal, reports and labels.
 
+**Live:** https://antz-enrichment.pages.dev
+
 > **Prototype.** It runs on sample data in the browser. It is not connected to ANTZ: there is no backend, no real sign-in and no file storage. See [Limits](#limits).
 
 ![My tasks](docs/screenshots/my-tasks.jpg)
@@ -26,6 +28,13 @@ npm run test:ui            # UI checks at 4 iPad sizes (needs npm start and Goog
 ```
 
 URL options: `?as=P-MEERA` (sign in as a person) · `?o=portrait` · `?reset=1` (fresh sample data) · `#/audits/AU-0002` (open a screen).
+
+### Deploy (Cloudflare Pages)
+
+```sh
+npx wrangler login         # once, opens the browser
+npm run deploy             # builds dist/ and publishes to antz-enrichment.pages.dev
+```
 
 ## Screens
 

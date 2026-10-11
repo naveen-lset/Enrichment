@@ -16,7 +16,7 @@ Hard-refresh after CSS changes. `?reset=1` restores the sample data; **Reset** i
 - `src/model/model.js` is unchanged (the PRD rules). `seed.js` gained two hooks that call `seed-demo.js` (app only; tests don't load it).
 - `src/model/work.js`: **proposed** template / schedule / occurrence / task / corrective-task layer.
 - `docs/WORKFLOWS.md`: workflow map, screen inventory, layout spec, status and role matrices, task-model concepts, traceability, decisions, integrations, test checklist.
-- Pushed to GitHub (`main`). Not deployed anywhere.
+- Pushed to GitHub (`main`). Live on Cloudflare Pages: https://antz-enrichment.pages.dev (Cloudflare Pages project `antz-enrichment`). Redeploy: `npm run deploy`.
 
 ## User's rules
 1. No helper text or explanations in the UI. Simple and clean.

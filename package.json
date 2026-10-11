@@ -6,6 +6,11 @@
   "scripts": {
     "start": "python3 -m http.server 8834",
     "test": "node --test tests/model.test.mjs",
-    "test:ui": "node tests/ui/run.mjs"
+    "test:ui": "node tests/ui/run.mjs",
+    "build": "node scripts/build.mjs",
+    "deploy": "npm run build && wrangler pages deploy dist --project-name antz-enrichment --branch main"
+  },
+  "devDependencies": {
+    "wrangler": "^4.149.0"
   }
 }
