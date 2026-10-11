@@ -1,0 +1,331 @@
+/* Projects/GRC-v2/grc-v2/kit/kit.css — the GRC v2 component kit (render functions in kit/kit.js; catalogue: components.html).
+   Started from GRC v1 (audit.css) and changed by Sourav's marks: docs/components-v1-marks.md → architecture.md UI-1..UI-14.
+   Rules held here: colours are app/tokens.css variables only (no hex); no font-size / font-weight (text takes a .t-* class from
+   app/type.css, set in the markup by kit.js); spacing 2 · 4 · 8 · 12 · 16 · 24 · 32 (CRAFT-SPACING-001; other --sp-* only for sizes);
+   radius 4 · 8 · 12 · 999 (CRAFT-SHAPE-001), plus 6 for the selected item inside a segmented control (UI-5, Sourav's mark).
+   Every class is prefixed k- so the kit can load beside the v1 audit.css without either changing the other. */
+
+:root {
+  /* UI-7: toolbars sit on 75% white. tokens.css has OnPrimary at 70% and 80% only, so this one step is built from the same token. */
+  --k-toolbar-bg: rgb(from var(--md3-on-primary) r g b / 75%);
+  /* how far a band (page header, toolbar) reaches past the page's side padding to run edge to edge: the v2 main pads 16 */
+  --k-bleed: var(--sp-16);
+  /* page gutter inside a band (CRAFT-SPACING-001, app tablet 24) */
+  --k-gutter: var(--sp-24);
+}
+
+.k-icon-slot { display: inline-flex; flex: none; }
+[class^="k-"], [class*=" k-"] { box-sizing: border-box; }
+a[class^="k-"], a[class*=" k-"] { text-decoration: none; }
+button[class^="k-"], button[class*=" k-"] { font-family: inherit; }
+
+/* ---------- buttons (N-01; v1 .btn) — UI-1: the primary fill is OnPrimaryContainer unless Sourav names Primary ---------- */
+.k-btn { display: inline-flex; align-items: center; justify-content: center; gap: var(--sp-8); height: 44px; padding: 0 var(--sp-16); border-radius: 8px;
+  border: 1px solid var(--md3-outline-variant); background: var(--md3-on-primary); color: var(--md3-on-surface-variant); white-space: nowrap; cursor: pointer; }
+.k-btn--primary { background: var(--md3-on-primary-container); border-color: var(--md3-on-primary-container); color: var(--md3-on-primary); }
+.k-btn--primary.k-btn--brand { background: var(--md3-primary); border-color: var(--md3-primary); } /* only where Sourav says (UI-1); A11Y-CONTRAST-001/primary-button */
+.k-btn--ghost { background: transparent; border-color: transparent; }
+.k-btn--danger { color: var(--md3-error); }
+.k-btn--sm { height: 40px; padding: 0 var(--sp-12); }
+.k-btn--lg { height: 48px; padding: 0 var(--sp-24); }
+.k-btn--block { width: 100%; }
+.k-btn:disabled, .k-btn[aria-disabled="true"] { background: var(--md3-surface-variant); border-color: var(--md3-surface-variant); color: var(--md3-on-surface-variant); cursor: not-allowed; }
+.k-iconbtn { width: 44px; height: 44px; flex: none; display: inline-grid; place-items: center; border-radius: 8px; border: 1px solid var(--md3-outline-variant); background: var(--md3-on-primary); color: var(--md3-on-surface-variant); cursor: pointer; padding: 0; }
+.k-iconbtn--ghost { border-color: transparent; background: transparent; }
+.k-iconbtn:disabled { color: var(--md3-outline-variant); cursor: not-allowed; }
+
+/* ---------- C-01 bottom tab bar (v1 .rail / .nav) ---------- */
+.k-tabbar { display: flex; padding: 0 var(--sp-8); background: var(--md3-on-primary); box-shadow: 0 -1px 0 var(--md3-surface-variant); }
+.k-tabbar__item { position: relative; flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: var(--sp-4); height: 72px;
+  color: var(--md3-on-surface-variant); border-top: 2px solid transparent; }
+.k-tabbar__item.is-on { color: var(--md3-on-surface); border-top-color: var(--md3-primary); }
+.k-tabbar__badge { position: absolute; top: 8px; left: calc(50% + 6px); min-width: 20px; height: 20px; padding: 0 var(--sp-4); border-radius: 999px;
+  display: grid; place-items: center; background: var(--md3-tertiary); color: var(--md3-on-primary); }
+
+/* ---------- C-03 app bar (retired on tablet; kept for the phone and the catalogue) ---------- */
+.k-appbar { display: flex; align-items: center; gap: var(--sp-8); height: 56px; padding: 0 var(--sp-16) 0 var(--sp-24); background: var(--md3-on-primary); color: var(--md3-on-surface-variant); border-bottom: 1px solid var(--md3-surface-variant); }
+.k-appbar__t { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+
+/* ---------- C-04 site selector (v1 .tsite) ---------- */
+.k-site { display: inline-flex; align-items: center; gap: var(--sp-4); height: 44px; padding: 0 var(--sp-8); border: 0; border-radius: 8px; background: none; color: var(--md3-on-primary-container); cursor: pointer; }
+.k-site:hover { background: var(--md3-background); }
+.k-site__t { max-width: 200px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+
+/* ---------- C-05 FAB and speed dial (v1 .fab.gfab, .tdial) ---------- */
+.k-fab { display: inline-grid; place-items: center; width: 64px; height: 64px; padding: 0; border: 0; border-radius: 12px; cursor: pointer;
+  background: linear-gradient(135deg, var(--md3-secondary), var(--md3-primary)); color: var(--md3-on-primary); box-shadow: 0 4px 16px var(--md3-neutral-primary-a20), 0 1px 3px var(--black-08); }
+.k-fab.is-open { background: var(--md3-primary-container); color: var(--md3-on-surface-variant); }
+.k-fab--abs { position: absolute; right: var(--sp-24); bottom: var(--sp-24); z-index: 15; }
+.k-dial { display: flex; flex-direction: column; align-items: flex-end; gap: var(--sp-16); }
+.k-dial__it { display: flex; align-items: center; gap: var(--sp-24); border: 0; background: none; padding: 0; color: var(--md3-on-surface-variant); cursor: pointer; }
+.k-dial__b { width: 56px; height: 56px; flex: none; display: grid; place-items: center; border-radius: 12px; background: var(--md3-surface-variant); color: var(--md3-on-primary-container); }
+.k-dial-wrap { display: flex; flex-direction: column; align-items: flex-end; gap: var(--sp-24); padding: var(--sp-24); background: var(--md3-on-primary-a90); }
+
+/* ---------- C-06 bottom action bar (v1 .pbar) ---------- */
+.k-actionbar { display: flex; align-items: center; justify-content: flex-end; gap: var(--sp-12); padding: var(--sp-12) var(--sp-24); background: var(--md3-on-primary); border-top: 1px solid var(--md3-surface-variant); }
+.k-actionbar__lead { flex: 1; min-width: 0; color: var(--md3-on-surface-variant); }
+.k-actionbar .k-btn { height: 48px; }
+.k-actionbar .k-btn--primary { min-width: 220px; }
+
+/* ---------- C-07 page header band + level-1 tabs (v1 .ph + .tabs) ---------- */
+/* UI-2: the page header band's top 24 / bottom 16 is the padding every header (detail, task) uses. Text in OnSurfaceVariant (D7, UI-14). */
+.k-ph { display: flex; align-items: center; gap: var(--sp-12) var(--sp-16); margin: 0 calc(-1 * var(--k-bleed)); padding: var(--sp-24) var(--k-gutter) var(--sp-16);
+  background: var(--md3-on-primary); border-bottom: 1px solid var(--md3-surface-variant); color: var(--md3-on-surface-variant); }
+.k-ph__main { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: var(--sp-4); }
+.k-ph__title { margin: 0; color: var(--md3-on-surface-variant); }
+.k-ph__sub { margin: 0; color: var(--md3-on-surface-variant); }
+.k-ph__act { display: flex; align-items: center; gap: var(--sp-8); flex: none; margin-left: auto; }
+.k-ph.has-tabs { border-bottom: 0; padding-bottom: var(--sp-8); }
+.k-ph + .k-tabs { margin: 0 calc(-1 * var(--k-bleed)); padding: 0 var(--k-gutter); background: var(--md3-on-primary); border-bottom: 1px solid var(--md3-surface-variant); }
+.k-tabs { display: flex; gap: var(--sp-24); overflow-x: auto; scrollbar-width: none; }
+.k-tabs__t { height: 52px; display: flex; align-items: center; gap: var(--sp-8); color: var(--md3-on-surface-variant); border-bottom: 2px solid transparent; white-space: nowrap; }
+.k-tabs__t.is-on { color: var(--md3-on-surface); border-bottom-color: var(--md3-primary); }
+/* UI-4: the count has the same colour as the tab text */
+.k-tabs__n { min-width: 24px; height: 20px; padding: 0 var(--sp-8); border-radius: 999px; display: inline-grid; place-items: center; background: var(--md3-displaybg-primary); color: inherit; font-variant-numeric: tabular-nums; }
+.k-tabs__t.is-on .k-tabs__n { background: var(--md3-on-background); }
+
+/* ---------- C-08 detail header · C-09 task header (v1 .ph.p-det, session header) — UI-2 ---------- */
+.k-ph--detail .k-ph__main { flex-direction: row; align-items: center; gap: var(--sp-4); }
+.k-ph__stack { min-width: 0; display: flex; flex-direction: column; gap: var(--sp-4); }
+.k-ph__back { width: 44px; height: 44px; flex: none; margin-left: calc(-1 * var(--sp-12)); display: grid; place-items: center; border-radius: 8px; color: var(--md3-on-surface); }
+.k-ph__back:hover { background: var(--md3-background); }
+.k-ph__tags { display: flex; align-items: center; gap: var(--sp-8); flex: none; }
+.k-ph__line { display: flex; flex-wrap: wrap; align-items: center; gap: var(--sp-4) var(--sp-12); margin: 0; color: var(--md3-on-surface-variant); }
+.k-ph__line > span + span::before { content: '·'; margin-right: var(--sp-12); }
+
+/* ---------- C-19 status pill · C-22 outcome pill — UI-6: no dot; light background, dark text, colour by state ---------- */
+.k-pill { display: inline-flex; align-items: center; height: 28px; padding: 0 var(--sp-12); border-radius: 999px; white-space: nowrap;
+  background: var(--md3-displaybg-primary); color: var(--md3-on-surface-variant); }
+.k-pill--ok { background: var(--md3-on-background); color: var(--md3-on-surface); }
+.k-pill--info { background: var(--md3-secondary-container-a30); color: var(--md3-on-secondary-container); }
+.k-pill--warn { background: var(--md3-notes-a40); color: var(--md3-on-tertiary-container); }
+.k-pill--attn { background: var(--md3-tertiary-container-a30); color: var(--md3-on-tertiary-container); }
+.k-pill--bad { background: var(--md3-error-container); color: var(--md3-on-error-container); }
+.k-quiet { color: var(--md3-on-surface-variant); }
+
+/* ---------- C-21 tag ---------- */
+.k-tag { display: inline-flex; align-items: center; height: 24px; padding: 0 var(--sp-8); border-radius: 4px; background: var(--md3-displaybg-primary); color: var(--md3-on-surface-variant); white-space: nowrap; }
+a.k-tag, button.k-tag { position: relative; height: 32px; border: 0; color: var(--md3-on-surface); cursor: pointer; }
+a.k-tag::after, button.k-tag::after { content: ''; position: absolute; inset: -6px 0; } /* 44px hit area (A11Y-TARGET-001) */
+
+/* ---------- C-10 / C-12 / C-13 row card — UI-3, UI-12: one item = one card ---------- */
+.k-cards { display: flex; flex-direction: column; gap: var(--sp-12); }
+.k-rowcard { display: flex; align-items: center; gap: var(--sp-16); min-height: 72px; padding: var(--sp-16); border: 1px solid var(--md3-surface-variant); border-radius: 8px;
+  background: var(--md3-on-primary); color: var(--md3-on-surface-variant); }
+a.k-rowcard, .k-rowcard[onclick] { cursor: pointer; }
+a.k-rowcard:hover, .k-rowcard[onclick]:hover { background: var(--md3-surface); }
+.k-rowcard__ico { width: 40px; height: 40px; flex: none; display: grid; place-items: center; border-radius: 8px; background: var(--md3-displaybg-primary); color: var(--md3-on-primary-container); }
+.k-rowcard__ico--bad { background: var(--md3-error-container); color: var(--md3-on-error-container); }
+.k-rowcard__ico--warn { background: var(--md3-notes-a40); color: var(--md3-on-tertiary-container); }
+.k-rowcard__ico--ok { background: var(--md3-on-background); color: var(--md3-on-surface); }
+.k-rowcard__ico--info { background: var(--md3-secondary-container-a30); color: var(--md3-on-secondary-container); }
+.k-rowcard__main { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: var(--sp-4); }
+.k-rowcard__t { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.k-rowcard__meta { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.k-rowcard__side { flex: none; display: flex; align-items: center; gap: var(--sp-12); }
+.k-rowcard__fact { display: flex; flex-direction: column; gap: var(--sp-2); text-align: right; }
+.k-rowcard__chev { flex: none; display: flex; color: var(--md3-outline); }
+
+/* ---------- C-14 data table + view switch ---------- */
+.k-table-wrap { background: var(--md3-on-primary); border: 1px solid var(--md3-surface-variant); border-radius: 8px; overflow-x: auto; }
+.k-table { width: 100%; border-collapse: collapse; }
+.k-table th { height: 48px; padding: 0 var(--sp-12); text-align: left; text-transform: uppercase; letter-spacing: .06em; background: var(--md3-displaybg-primary); color: var(--md3-on-surface-variant); white-space: nowrap; }
+.k-table td { height: 52px; padding: var(--sp-8) var(--sp-12); border-top: 1px solid var(--md3-surface-variant); color: var(--md3-on-surface-variant); vertical-align: middle; }
+.k-table th:first-child, .k-table td:first-child { padding-left: var(--sp-16); }
+.k-table th:last-child, .k-table td:last-child { padding-right: var(--sp-16); }
+.k-table .is-r { text-align: right; font-variant-numeric: tabular-nums; }
+.k-table tbody tr[onclick], .k-table tbody tr[data-href] { cursor: pointer; }
+.k-table tbody tr[onclick]:hover, .k-table tbody tr[data-href]:hover { background: var(--md3-surface); }
+.k-table .k-one { display: block; max-width: 320px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+/* UI-5: icon only; container radius 8, the selected item's container radius 6 — the segmented control below follows the same rule */
+.k-vsw { display: inline-flex; gap: var(--sp-4); padding: var(--sp-4); border-radius: 8px; background: var(--md3-displaybg-primary); }
+.k-vsw__b { width: 44px; height: 36px; display: grid; place-items: center; border: 0; border-radius: 6px; background: none; color: var(--md3-on-surface-variant); cursor: pointer; padding: 0; }
+.k-vsw__b.is-on { background: var(--md3-on-primary-container); color: var(--md3-on-primary); }
+
+/* ---------- C-15 white container and section header ---------- */
+.k-card { background: var(--md3-on-primary); border: 1px solid var(--md3-surface-variant); border-radius: 8px; color: var(--md3-on-surface-variant); }
+.k-card--pad { padding: var(--sp-16); }
+.k-card--roomy { padding: var(--sp-24); }
+.k-card__h { display: flex; align-items: center; justify-content: space-between; gap: var(--sp-12); margin-bottom: var(--sp-16); }
+.k-card__h h2, .k-card__h h3 { margin: 0; }
+.k-card__eyebrow { display: block; text-transform: uppercase; letter-spacing: .06em; margin-bottom: var(--sp-4); }
+
+/* ---------- C-16 area tile · C-17 KPI tile ---------- */
+.k-tiles { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: var(--sp-12); }
+.k-tile { display: flex; flex-direction: column; gap: var(--sp-8); padding: var(--sp-16); border: 1px solid var(--md3-surface-variant); border-radius: 8px; background: var(--md3-on-primary); color: var(--md3-on-surface-variant); }
+a.k-tile, .k-tile[onclick] { cursor: pointer; }
+a.k-tile:hover, .k-tile[onclick]:hover { background: var(--md3-surface); }
+.k-tile__h { display: flex; align-items: center; gap: var(--sp-8); }
+.k-tile__ico { width: 32px; height: 32px; display: grid; place-items: center; border-radius: 8px; background: var(--md3-displaybg-primary); color: var(--md3-on-primary-container); flex: none; }
+.k-tile__n { font-variant-numeric: tabular-nums; }
+.k-tile__n small { margin-left: var(--sp-4); }
+.k-tile__sub { display: flex; align-items: center; gap: var(--sp-8); }
+.k-kpi__label { text-transform: uppercase; letter-spacing: .06em; }
+.k-num--bad { color: var(--md3-error); }
+.k-num--attn { color: var(--md3-tertiary); }
+
+/* ---------- C-18 audit card ---------- */
+.k-acard { display: block; padding: var(--sp-16); border: 1px solid var(--md3-surface-variant); border-radius: 8px; background: var(--md3-on-primary); color: var(--md3-on-surface-variant); }
+a.k-acard, .k-acard[onclick] { cursor: pointer; }
+.k-acard__h { display: flex; align-items: flex-start; justify-content: space-between; gap: var(--sp-12); }
+.k-acard__h > div { min-width: 0; display: flex; flex-direction: column; gap: var(--sp-4); }
+.k-acard__strip { display: grid; grid-auto-flow: column; grid-auto-columns: minmax(0, 1fr); gap: var(--sp-16); margin-top: var(--sp-12); padding: var(--sp-12) var(--sp-16); border-radius: 8px; background: var(--md3-background); }
+.k-acard__strip > div { display: flex; flex-direction: column; gap: var(--sp-2); min-width: 0; }
+.k-acard__secs { display: flex; flex-wrap: wrap; gap: var(--sp-4) var(--sp-16); margin-top: var(--sp-12); }
+
+/* ---------- C-23 entity card ---------- */
+.k-ecard { display: flex; align-items: center; gap: var(--sp-12); padding: var(--sp-16); border: 1px solid var(--md3-surface-variant); border-radius: 8px; background: var(--md3-on-primary); color: var(--md3-on-surface-variant); }
+.k-ecard__main { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: var(--sp-4); }
+.k-ecard__side { flex: none; display: flex; align-items: center; gap: var(--sp-12); }
+.k-ecards { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: var(--sp-12); }
+
+/* ---------- C-24 ring and tick ---------- */
+.k-ring { position: relative; display: inline-grid; place-items: center; flex: none; color: var(--md3-on-surface-variant); }
+.k-ring svg { position: absolute; inset: 0; transform: rotate(-90deg); }
+.k-ring__track { stroke: var(--md3-surface-variant); }
+.k-ring__arc { stroke: var(--md3-primary); }
+.k-ring--bad .k-ring__arc { stroke: var(--md3-error); }
+.k-ring--warn .k-ring__arc { stroke: var(--md3-moderate-secondary); }
+.k-ring__c { position: relative; display: flex; flex-direction: column; align-items: center; gap: var(--sp-2); }
+.k-tick { width: 28px; height: 28px; flex: none; display: inline-grid; place-items: center; border-radius: 50%; background: var(--md3-primary); color: var(--md3-on-primary); }
+.k-tick--off { background: none; border: 2px solid var(--md3-surface-variant); color: transparent; }
+
+/* ---------- C-25 bars ---------- */
+.k-bar { height: 8px; border-radius: 4px; background: var(--md3-surface-variant); overflow: hidden; display: flex; gap: var(--sp-2); }
+.k-bar > i { display: block; height: 100%; background: var(--md3-primary); }
+.k-bar > i.is-warn { background: var(--md3-moderate-secondary); }
+.k-bar > i.is-bad { background: var(--md3-error); }
+.k-bar > i.is-none { background: var(--md3-outline-variant); }
+.k-mini { display: inline-flex; align-items: flex-end; gap: var(--sp-4); height: 28px; }
+.k-mini > i { display: block; width: 8px; border-radius: 4px 4px 0 0; background: var(--md3-primary-a40); }
+.k-mini > i:last-child { background: var(--md3-primary); }
+.k-mini > i.is-bad { background: var(--md3-error); }
+
+/* ---------- C-26 stat strip ---------- */
+.k-strip { display: grid; grid-auto-flow: column; grid-auto-columns: minmax(0, 1fr); overflow: hidden; border: 1px solid var(--md3-surface-variant); border-radius: 8px; background: var(--md3-on-primary); }
+.k-strip__c { display: flex; flex-direction: column; justify-content: center; gap: var(--sp-4); min-height: 88px; padding: var(--sp-12) var(--sp-16); border: 0; border-left: 1px solid var(--md3-surface-variant); background: none; text-align: left; color: var(--md3-on-surface-variant); }
+.k-strip__c:first-child { border-left: 0; }
+button.k-strip__c { cursor: pointer; }
+button.k-strip__c:hover { background: var(--md3-surface); }
+.k-strip__c.is-on { background: var(--md3-surface); box-shadow: inset 0 -3px 0 var(--md3-primary); }
+.k-strip__n { font-variant-numeric: tabular-nums; }
+
+/* ---------- C-27 list toolbar · C-36 run toolbar — UI-7: fixed under the app bar, edge to edge, 75% white; every item radius 8 ---------- */
+.k-toolbar { position: sticky; top: 0; z-index: 10; display: flex; flex-direction: column; gap: var(--sp-12); margin: 0 calc(-1 * var(--k-bleed)); padding: var(--sp-12) var(--k-gutter);
+  background: var(--k-toolbar-bg); -webkit-backdrop-filter: blur(8px); backdrop-filter: blur(8px); border-bottom: 1px solid var(--md3-surface-variant); }
+.k-toolbar__row { display: flex; flex-wrap: wrap; align-items: center; gap: var(--sp-8); }
+.k-toolbar__grow { flex: 1; }
+.k-toolbar__count { color: var(--md3-on-surface-variant); }
+.k-search { flex: 1 1 240px; min-width: 200px; height: 44px; display: flex; align-items: center; gap: var(--sp-8); padding: 0 var(--sp-12); border: 1px solid var(--md3-outline-variant); border-radius: 8px; background: var(--md3-on-primary); color: var(--md3-on-surface-variant); }
+.k-search input { flex: 1; min-width: 0; height: 100%; border: 0; outline: 0; background: none; color: var(--md3-on-surface-variant); font-family: inherit; }
+.k-search input::placeholder { color: var(--md3-on-surface-variant); opacity: 1; }
+.k-search:focus-within { border-color: var(--md3-outline); }
+.k-fbtn { display: inline-flex; align-items: center; gap: var(--sp-8); height: 44px; padding: 0 var(--sp-12) 0 var(--sp-16); border: 1px solid var(--md3-outline-variant); border-radius: 8px; background: var(--md3-on-primary); color: var(--md3-on-surface-variant); white-space: nowrap; cursor: pointer; }
+.k-fbtn.is-on { background: var(--md3-surface); border-color: var(--md3-primary); }
+.k-chip { display: inline-flex; align-items: center; gap: var(--sp-8); height: 40px; padding: 0 var(--sp-12); border: 1px solid var(--md3-outline-variant); border-radius: 8px; background: var(--md3-on-primary); color: var(--md3-on-surface-variant); white-space: nowrap; cursor: pointer; }
+.k-chip.is-on { background: var(--md3-surface); border-color: var(--md3-primary); color: var(--md3-on-surface); }
+.k-chip__x { display: inline-flex; margin-right: calc(-1 * var(--sp-4)); }
+
+/* ---------- C-28 segmented control — UI-5 (radius 8 / 6), UI-4 (count = label colour), UI-1 (selected OnPrimaryContainer) ---------- */
+.k-seg { display: inline-flex; flex-wrap: nowrap; gap: var(--sp-4); padding: var(--sp-4); border-radius: 8px; background: var(--md3-displaybg-primary); max-width: 100%; overflow-x: auto; scrollbar-width: none; }
+.k-seg__b { height: 36px; display: inline-flex; align-items: center; gap: var(--sp-8); padding: 0 var(--sp-12); border: 0; border-radius: 6px; background: none; color: var(--md3-on-surface-variant); white-space: nowrap; cursor: pointer; }
+.k-seg__b.is-on { background: var(--md3-on-primary-container); color: var(--md3-on-primary); }
+.k-seg__n { color: inherit; font-variant-numeric: tabular-nums; }
+.k-seg--lg .k-seg__b { height: 40px; padding: 0 var(--sp-16); }
+
+/* ---------- C-45 corrective action card ---------- */
+.k-actcard { padding: var(--sp-16); border: 1px solid var(--md3-surface-variant); border-radius: 8px; background: var(--md3-on-primary); color: var(--md3-on-surface-variant); display: flex; flex-direction: column; gap: var(--sp-12); }
+.k-actcard__h { display: flex; align-items: flex-start; justify-content: space-between; gap: var(--sp-12); }
+.k-actcard__h > div { min-width: 0; display: flex; flex-direction: column; gap: var(--sp-4); }
+.k-actcard__f { display: flex; gap: var(--sp-8); justify-content: flex-end; }
+
+/* ---------- C-46 evidence thumbnails ---------- */
+.k-thumbs { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: var(--sp-12); }
+.k-thumb { position: relative; aspect-ratio: 4 / 3; overflow: hidden; display: grid; place-items: center; border-radius: 8px; background: var(--md3-on-primary-container-a60); color: var(--md3-on-primary); }
+.k-thumb--photo { background: linear-gradient(135deg, var(--md3-on-primary-container-a60), var(--md3-secondary-dark)); }
+.k-thumb--doc { background: var(--md3-displaybg-primary); color: var(--md3-outline); }
+.k-thumb.is-on { box-shadow: 0 0 0 2px var(--md3-primary); }
+.k-thumb__cap { position: absolute; left: var(--sp-8); bottom: var(--sp-8); max-width: calc(100% - 16px); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; padding: var(--sp-2) var(--sp-8); border-radius: 4px; background: var(--md3-neutral-primary-a40); color: var(--md3-on-primary); }
+.k-thumb--doc .k-thumb__cap { background: var(--md3-on-primary); color: var(--md3-on-surface-variant); }
+
+/* ---------- C-47 activity timeline — neutral nodes (UI-6), Primary for the latest ---------- */
+.k-tl { position: relative; margin: 0; padding: 0 0 0 var(--sp-24); list-style: none; }
+.k-tl::before { content: ''; position: absolute; left: 6px; top: 6px; bottom: 6px; width: 2px; border-radius: 999px; background: var(--md3-surface-variant); }
+.k-tl__i { position: relative; display: flex; flex-direction: column; gap: var(--sp-2); padding-bottom: var(--sp-16); color: var(--md3-on-surface-variant); }
+.k-tl__i:last-child { padding-bottom: 0; }
+.k-tl__i::before { content: ''; position: absolute; left: -24px; top: 2px; width: 14px; height: 14px; box-sizing: border-box; border-radius: 50%; background: var(--md3-on-primary); border: 2px solid var(--md3-outline-variant); }
+.k-tl__i.is-cur::before { border-color: var(--md3-primary); background: var(--md3-primary); }
+
+/* ---------- C-48 sheet shell + option cards (C-50, C-51, C-52, C-53, C-54) ---------- */
+.k-scrim { position: absolute; inset: 0; z-index: 20; display: flex; align-items: flex-end; justify-content: center; background: var(--md3-on-primary-container-a60); }
+.k-sheet { width: calc(100% - 32px); max-width: 770px; max-height: 92%; display: flex; flex-direction: column; overflow: hidden; border-radius: 12px 12px 0 0; background: var(--md3-on-primary); color: var(--md3-on-surface-variant);
+  box-shadow: 0 4px 16px var(--md3-neutral-primary-a20), 0 1px 3px var(--black-08); }
+.k-sheet__grab { flex: none; width: 36px; height: 4px; margin: var(--sp-12) auto var(--sp-4); border-radius: 999px; background: var(--md3-outline-variant); }
+.k-sheet__h { flex: none; display: flex; align-items: flex-start; gap: var(--sp-12); padding: var(--sp-8) var(--sp-24) var(--sp-16); }
+.k-sheet__h > div { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: var(--sp-4); }
+.k-sheet__h h2, .k-sheet__h p { margin: 0; }
+.k-sheet__b { flex: 1; min-height: 0; overflow-y: auto; padding: var(--sp-24); background: var(--md3-background); }
+.k-sheet__f { flex: none; display: flex; align-items: center; justify-content: flex-end; gap: var(--sp-12); padding: var(--sp-16) var(--sp-24); background: var(--md3-on-primary); box-shadow: 0 -4px 10px var(--black-08); }
+.k-sheet__f .k-btn { height: 48px; }
+.k-sheet__lead { flex: 1; min-width: 0; }
+.k-opts { display: flex; flex-direction: column; gap: var(--sp-8); }
+.k-opt { display: flex; align-items: center; gap: var(--sp-12); width: 100%; min-height: 64px; padding: var(--sp-12) var(--sp-16); border: 1px solid var(--md3-surface-variant); border-radius: 8px; background: var(--md3-on-primary); color: var(--md3-on-surface-variant); text-align: left; cursor: pointer; }
+.k-opt.is-on { border-color: var(--md3-primary); background: var(--md3-surface); }
+.k-opt__main { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: var(--sp-2); }
+.k-opt__ico { width: 40px; height: 40px; flex: none; display: grid; place-items: center; border-radius: 8px; background: var(--md3-displaybg-primary); color: var(--md3-on-primary-container); }
+.k-box { width: 24px; height: 24px; flex: none; display: grid; place-items: center; border-radius: 4px; border: 2px solid var(--md3-outline); background: var(--md3-on-primary); color: transparent; }
+.k-opt.is-on .k-box, .k-box.is-on { background: var(--md3-on-surface); border-color: var(--md3-on-surface); color: var(--md3-on-primary); }
+.k-radio { width: 24px; height: 24px; flex: none; border-radius: 50%; border: 2px solid var(--md3-outline); background: var(--md3-on-primary); }
+.k-opt.is-on .k-radio { border: 7px solid var(--md3-on-surface); }
+
+/* ---------- C-49 / C-55 full-page form, step bar, fields, chip choice — UI-8 ---------- */
+.k-form { display: flex; flex-direction: column; min-height: 100%; background: var(--md3-background); }
+.k-form__steps { margin: 0 calc(-1 * var(--k-bleed)); padding: 0 var(--k-gutter) var(--sp-16); background: var(--md3-on-primary); border-bottom: 1px solid var(--md3-surface-variant); }
+.k-form__body { flex: 1; display: flex; flex-direction: column; gap: var(--sp-24); padding: var(--sp-24) 0; }
+.k-form__sec { display: flex; flex-direction: column; gap: var(--sp-12); }
+.k-form__sec > h2 { margin: 0 0 var(--sp-4); }
+.k-form__pair { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: var(--sp-12); }
+.k-form > .k-actionbar { position: sticky; bottom: 0; margin: 0 calc(-1 * var(--k-bleed)); box-shadow: 0 -4px 10px var(--black-08); border-top: 0; }
+.k-steps { display: flex; gap: var(--sp-8); margin: 0; padding: 0; list-style: none; }
+.k-steps__s { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: var(--sp-8); color: var(--md3-on-surface-variant); }
+.k-steps__s > i { display: block; height: 4px; border-radius: 999px; background: var(--md3-surface-variant); }
+.k-steps__s.is-done > i { background: var(--md3-primary); }
+.k-steps__s.is-cur > i { background: var(--md3-on-surface); }
+.k-steps__s.is-cur { color: var(--md3-on-surface); }
+.k-field { display: flex; flex-direction: column; gap: var(--sp-8); }
+.k-field__l { display: flex; align-items: baseline; gap: var(--sp-8); color: var(--md3-on-surface-variant); }
+.k-field__hint { color: var(--md3-on-surface-variant); }
+.k-inp { width: 100%; height: 44px; padding: 0 var(--sp-16); border: 1px solid var(--md3-outline-variant); border-radius: 8px; background: var(--md3-on-primary); color: var(--md3-on-surface-variant); font-family: inherit; outline: none; }
+.k-inp::placeholder { color: var(--md3-on-surface-variant); opacity: 1; }
+.k-inp:hover { border-color: var(--md3-outline); }
+.k-inp:focus { border: 2px solid var(--md3-primary); padding: 0 calc(var(--sp-16) - 1px); }
+textarea.k-inp { height: 96px; padding: var(--sp-12) var(--sp-16); resize: vertical; }
+textarea.k-inp:focus { padding: calc(var(--sp-12) - 1px) calc(var(--sp-16) - 1px); }
+.k-sel { display: flex; align-items: center; justify-content: space-between; gap: var(--sp-8); text-align: left; cursor: pointer; }
+.k-field.is-error .k-inp { border-color: var(--md3-error); }
+.k-field__err { color: var(--md3-error); }
+.k-choice { display: flex; flex-wrap: wrap; gap: var(--sp-8); }
+.k-choice .k-chip { height: 44px; padding: 0 var(--sp-16); }
+
+/* ---------- C-59 key-value list ---------- */
+.k-kv { display: grid; grid-template-columns: 160px minmax(0, 1fr); gap: var(--sp-12) var(--sp-16); margin: 0; }
+.k-kv dt, .k-kv dd { margin: 0; color: var(--md3-on-surface-variant); }
+
+/* ---------- C-60 trend bars and bar rows ---------- */
+.k-trend { display: flex; align-items: flex-end; gap: var(--sp-8); height: 120px; }
+.k-trend__c { flex: 1; height: 100%; display: flex; flex-direction: column; justify-content: flex-end; align-items: center; gap: var(--sp-8); color: var(--md3-on-surface-variant); }
+.k-trend__c > i { display: block; width: 100%; max-width: 48px; border-radius: 4px 4px 0 0; background: var(--md3-primary-a20); }
+.k-trend__c:last-child > i { background: var(--md3-primary); }
+.k-barrows { display: flex; flex-direction: column; gap: var(--sp-12); }
+.k-barrow { display: grid; grid-template-columns: minmax(0, 1fr) 160px 48px; align-items: center; gap: var(--sp-12); color: var(--md3-on-surface-variant); }
+.k-barrow__t { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.k-barrow__n { text-align: right; font-variant-numeric: tabular-nums; }
+
+/* ---------- C-62 empty state — dashed OutlineVariant, icon, one sentence (CRAFT-SURFACE-DETAIL-001, T1.8) ---------- */
+.k-empty { display: flex; flex-direction: column; align-items: center; gap: var(--sp-12); padding: var(--sp-24) var(--sp-16); border: 1px dashed var(--md3-outline-variant); border-radius: 8px; background: var(--md3-on-primary); color: var(--md3-on-surface-variant); text-align: center; }
+.k-empty__ico { color: var(--md3-outline); display: flex; }
+.k-empty--error { background: var(--md3-error-container); border-style: solid; border-color: var(--md3-error-container); color: var(--md3-on-error-container); }
+.k-empty--error .k-empty__ico { color: var(--md3-error); }
+
+/* ---------- C-63 toast ---------- */
+.k-toast { display: inline-flex; align-items: center; gap: var(--sp-8); padding: var(--sp-12) var(--sp-16); border-radius: 8px; background: var(--md3-on-secondary-container); color: var(--md3-on-primary); box-shadow: 0 4px 16px var(--md3-neutral-primary-a20), 0 1px 3px var(--black-08); }

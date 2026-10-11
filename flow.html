@@ -1,0 +1,119 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=834"><link rel="icon" href="data:,">
+<title>Tablet flow · Enrichment & Furnishing</title>
+<!--
+  FLOW MAP: every phase of the PRD (13. MVP delivery plan) and every screen of the tablet app, with the role that opens it.
+  Each row opens index.html signed in as that role (?as=<person>), on that screen. ?reset=1 restores the demo data.
+  Confirmed components only: C-07 page header (button in its actions slot) · C-15 card · C-18 list card (pill in its status slot) · C-47 timeline.
+-->
+<link rel="stylesheet" href="kit/tokens.css">
+<link rel="stylesheet" href="kit/type.css">
+<link rel="stylesheet" href="kit/icons.css">
+<link rel="stylesheet" href="kit/kit.css">
+<link rel="stylesheet" href="src/app/theme.css">
+<style>
+  body { margin: 0; background: var(--md3-background); color: var(--md3-on-surface-variant); }
+  main > .k-acard + .k-acard { margin-top: calc(var(--sp-12) - var(--sp-24)); }
+  main > .k-ph + .k-tabs { margin-top: calc(-1 * var(--sp-24)); }
+  main { max-width: 834px; margin: 0 auto; padding: 0 var(--sp-24) var(--sp-32); display: flex; flex-direction: column; gap: var(--sp-24); --k-bleed: var(--sp-24); --k-gutter: var(--sp-24); }
+</style>
+</head>
+<body>
+<main id="app"></main>
+<script src="kit/icons.js"></script>
+<script src="kit/kit.js"></script>
+<script>
+const WHO = { sup: ['P-RAVI', 'Supervisor'], sup2: ['P-LAKS', 'Supervisor'], rec: ['P-ARUN', 'Receiving custodian'], afm: ['P-MEERA', 'AFM'], bio: ['P-ANJ', 'Biologist'], ws: ['P-JOS', 'Workshop / VIC'], mgmt: ['P-SUR', 'Approver'], admin: ['P-NEHA', 'ANTZ admin'] };
+const open = (who, hash) => `index.html?reset=1&as=${WHO[who][0]}${hash}`;
+const S = (title, hash, who, ref, kind) => ({ title, hash, who, ref, kind });
+const PHASES = [
+  { n: 1, title: 'Configure & register', screens: [
+    S('Overview dashboard', '#/overview', 'sup', '§9', 'Page'), S('Item register · find and filter', '#/register', 'sup', 'FR-06', 'Page'),
+    S('Item details · summary, timeline, repairs and transfers', '#/item/EF-0008', 'sup', 'FR-15', 'Detail'), S('Pending receipts', '#/receipts', 'sup', '§5.1', 'Detail'),
+    S('Receive items · review and submit', '#/receive/TK-2051', 'sup', 'FR-02, FR-03', 'Task page'), S('Register an existing item', '#/register-new', 'sup', 'FR-03', 'Task page'),
+    S('Setup · categories and tracking modes', '#/setup', 'admin', 'FR-01', 'Page'), S('Category · routing and required fields', '#/setup/CAT-A', 'admin', '§4', 'Task page') ] },
+  { n: 2, title: 'Lifecycle controls', screens: [
+    S('Move / rotate', '#/move/EF-0006', 'sup', 'FR-05', 'Task page'), S('Mark for repair · review and submit', '#/repair/EF-0001', 'sup', 'FR-10', 'Task page'),
+    S('Animal-use check', '#/item/EF-0005', 'bio', '§5.3', 'Sheet'), S('Repairability check · start repair', '#/mywork', 'ws', '§5.3', 'Sheet'),
+    S('Complete repair', '#/repair-done/EF-0016', 'ws', 'FR-10', 'Task page'), S('Initiate transfer · review and submit', '#/transfer/EF-0014', 'sup', 'FR-11', 'Task page'),
+    S('Acknowledge receipt', '#/item/EF-0009', 'rec', 'FR-11', 'Sheet'), S('Complete transfer by exception', '#/item/EF-0009', 'afm', '§8', 'Sheet') ] },
+  { n: 3, title: 'Disposal & audit', screens: [
+    S('Request disposal · review and submit', '#/dispose/EF-0010', 'sup', 'FR-08', 'Task page'), S('Disposal requests', '#/disposals', 'afm', '§5.5', 'Detail'),
+    S('Disposal validation', '#/disposal/DR-0005', 'bio', '§5.5', 'Sheet'), S('Approve or reject', '#/disposal/DR-0004', 'mgmt', '§5.5', 'Detail'),
+    S('Complete disposal · final disposition', '#/disposal/DR-0004', 'sup', 'FR-07', 'Sheet'), S('Audits', '#/audits', 'afm', 'FR-12', 'Page'),
+    S('New audit', '#/audit-new', 'admin', 'FR-12', 'Task page'), S('Audit workspace · check, assign, resolve, close', '#/audit/AU-0002', 'afm', '§5.6', 'Task'),
+    S('Resolve an exception', '#/audit/AU-0002', 'sup', '§5.6', 'Sheet') ] },
+  { n: 4, title: 'Optimisation', screens: [
+    S('QR / barcode labels', '#/labels', 'sup', 'FR-14', 'Detail'), S('Find by label', '#/register', 'sup', 'FR-14', 'Sheet'),
+    S('Reports · eight reports and success measures', '#/reports', 'afm', 'FR-13', 'Page'), S('Notifications and reminders', '#/notifications', 'afm', '§10', 'Detail'),
+    S('My work · tasks by role', '#/mywork', 'afm', '§3', 'Page') ] },
+];
+const FLOWS = [
+  { ref: '5.1', title: 'Receipt and registration', steps: [['Ticket dispatched', 'Existing request flow'], ['Confirm quantity and condition', 'Supervisor · Receive items'], ['Assign location and custodian', 'Supervisor · Receive items'], ['Records created', 'One ID per Category A unit · one batch for Category C'], ['Not fit on receipt', 'Under assessment']] },
+  { ref: '5.2', title: 'Use, storage and rotation', steps: [['Pick destination and reason', 'Supervisor · Move / rotate'], ['Same record moves', 'Status: In use or In storage'], ['Part of a batch', 'Splits into a linked batch']] },
+  { ref: '5.3', title: 'Condition issue and repair', steps: [['Flag issue with photos', 'Supervisor · Mark for repair'], ['Animal-use check', 'Biologist · when the category needs it'], ['Repairability check', 'Workshop / VIC'], ['Repair', 'Workshop · Start repair, Complete repair'], ['Back to a location', 'Condition Good']] },
+  { ref: '5.4', title: 'Transfer', steps: [['Destination, receiver, reference', 'Supervisor · Initiate transfer'], ['In transit', 'Receiver task'], ['Acknowledge receipt', 'Receiving custodian'], ['Exception', 'AFM, with a reason']] },
+  { ref: '5.5', title: 'Retirement, disposal and scrap', steps: [['Reason, condition, evidence, approver', 'Supervisor · Request disposal'], ['Validations', 'Biologist · Workshop / VIC'], ['Approve or reject', 'Approver'], ['Final disposition', 'Supervisor · record kept, never deleted']] },
+  { ref: '5.6', title: 'Periodic audit', steps: [['Audit list for the site', 'AFM · New audit'], ['Check every item', 'Auditor · Verified, mismatch, not found'], ['Assign exceptions', 'AFM'], ['Resolve', 'Custodian'], ['Close audit', 'AFM']] },
+];
+const total = PHASES.reduce((n, p) => n + p.screens.length, 0);
+// one phase per tab (C-07): the screens of that phase as list cards, straight on the page
+function draw() {
+  const cur = (location.hash || '#p1').slice(1);
+  const tabs = PHASES.map(p => ({ key: 'p' + p.n, label: 'Phase ' + p.n, count: p.screens.length, href: '#p' + p.n })).concat([{ key: 'flows', label: 'Workflows', count: FLOWS.length, href: '#flows' }]);
+  const ph = PHASES.find(p => 'p' + p.n === cur);
+  document.getElementById('app').innerHTML =
+    kPageHeader({ title: 'Tablet flow', sub: ph ? `Phase ${ph.n} · ${ph.title}` : `Enrichment & Furnishing · ${PHASES.length} phases · ${total} screens`, actions: kButton({ label: 'Open app', kind: 'primary', href: 'index.html?reset=1' }), tabs, current: cur })
+    + (ph ? ph.screens.map(s => kAuditCard({ name: s.title, about: s.hash, status: kPill(s.kind, 'info'), facts: [{ label: 'Role', value: WHO[s.who][1] }, { label: 'PRD', value: s.ref }], href: open(s.who, s.hash) })).join('')
+      : FLOWS.map(f => kCard({ eyebrow: '§' + f.ref, title: f.title, body: kTimeline(f.steps.map((s, i) => ({ title: s[0], text: s[1], current: i === f.steps.length - 1 }))) })).join(''));
+}
+window.addEventListener('hashchange', draw);
+draw();
+</script>
+<script src="kit/kit.js"></script>
+<script>
+const WHO = { sup: ['P-RAVI', 'Supervisor'], sup2: ['P-LAKS', 'Supervisor'], rec: ['P-ARUN', 'Receiving custodian'], afm: ['P-MEERA', 'AFM'], bio: ['P-ANJ', 'Biologist'], ws: ['P-JOS', 'Workshop / VIC'], mgmt: ['P-SUR', 'Approver'], admin: ['P-NEHA', 'ANTZ admin'] };
+const open = (who, hash) => `index.html?reset=1&as=${WHO[who][0]}${hash}`;
+const S = (title, hash, who, ref, kind) => ({ title, hash, who, ref, kind });
+const PHASES = [
+  { n: 1, title: 'Configure & register', screens: [
+    S('Overview dashboard', '#/overview', 'sup', '§9', 'Page'), S('Item register · find and filter', '#/register', 'sup', 'FR-06', 'Page'),
+    S('Item details · summary, timeline, repairs and transfers', '#/item/EF-0008', 'sup', 'FR-15', 'Detail'), S('Pending receipts', '#/receipts', 'sup', '§5.1', 'Detail'),
+    S('Receive items · review and submit', '#/receive/TK-2051', 'sup', 'FR-02, FR-03', 'Task page'), S('Register an existing item', '#/register-new', 'sup', 'FR-03', 'Task page'),
+    S('Setup · categories and tracking modes', '#/setup', 'admin', 'FR-01', 'Page'), S('Category · routing and required fields', '#/setup/CAT-A', 'admin', '§4', 'Task page') ] },
+  { n: 2, title: 'Lifecycle controls', screens: [
+    S('Move / rotate', '#/move/EF-0006', 'sup', 'FR-05', 'Task page'), S('Mark for repair · review and submit', '#/repair/EF-0001', 'sup', 'FR-10', 'Task page'),
+    S('Animal-use check', '#/item/EF-0005', 'bio', '§5.3', 'Sheet'), S('Repairability check · start repair', '#/mywork', 'ws', '§5.3', 'Sheet'),
+    S('Complete repair', '#/repair-done/EF-0016', 'ws', 'FR-10', 'Task page'), S('Initiate transfer · review and submit', '#/transfer/EF-0014', 'sup', 'FR-11', 'Task page'),
+    S('Acknowledge receipt', '#/item/EF-0009', 'rec', 'FR-11', 'Sheet'), S('Complete transfer by exception', '#/item/EF-0009', 'afm', '§8', 'Sheet') ] },
+  { n: 3, title: 'Disposal & audit', screens: [
+    S('Request disposal · review and submit', '#/dispose/EF-0010', 'sup', 'FR-08', 'Task page'), S('Disposal requests', '#/disposals', 'afm', '§5.5', 'Detail'),
+    S('Disposal validation', '#/disposal/DR-0005', 'bio', '§5.5', 'Sheet'), S('Approve or reject', '#/disposal/DR-0004', 'mgmt', '§5.5', 'Detail'),
+    S('Complete disposal · final disposition', '#/disposal/DR-0004', 'sup', 'FR-07', 'Sheet'), S('Audits', '#/audits', 'afm', 'FR-12', 'Page'),
+    S('New audit', '#/audit-new', 'admin', 'FR-12', 'Task page'), S('Audit workspace · check, assign, resolve, close', '#/audit/AU-0002', 'afm', '§5.6', 'Task'),
+    S('Resolve an exception', '#/audit/AU-0002', 'sup', '§5.6', 'Sheet') ] },
+  { n: 4, title: 'Optimisation', screens: [
+    S('QR / barcode labels', '#/labels', 'sup', 'FR-14', 'Detail'), S('Find by label', '#/register', 'sup', 'FR-14', 'Sheet'),
+    S('Reports · eight reports and success measures', '#/reports', 'afm', 'FR-13', 'Page'), S('Notifications and reminders', '#/notifications', 'afm', '§10', 'Detail'),
+    S('My work · tasks by role', '#/mywork', 'afm', '§3', 'Page') ] },
+];
+const FLOWS = [
+  { ref: '5.1', title: 'Receipt and registration', steps: [['Ticket dispatched', 'Existing request flow'], ['Confirm quantity and condition', 'Supervisor · Receive items'], ['Assign location and custodian', 'Supervisor · Receive items'], ['Records created', 'One ID per Category A unit · one batch for Category C'], ['Not fit on receipt', 'Under assessment']] },
+  { ref: '5.2', title: 'Use, storage and rotation', steps: [['Pick destination and reason', 'Supervisor · Move / rotate'], ['Same record moves', 'Status: In use or In storage'], ['Part of a batch', 'Splits into a linked batch']] },
+  { ref: '5.3', title: 'Condition issue and repair', steps: [['Flag issue with photos', 'Supervisor · Mark for repair'], ['Animal-use check', 'Biologist · when the category needs it'], ['Repairability check', 'Workshop / VIC'], ['Repair', 'Workshop · Start repair, Complete repair'], ['Back to a location', 'Condition Good']] },
+  { ref: '5.4', title: 'Transfer', steps: [['Destination, receiver, reference', 'Supervisor · Initiate transfer'], ['In transit', 'Receiver task'], ['Acknowledge receipt', 'Receiving custodian'], ['Exception', 'AFM, with a reason']] },
+  { ref: '5.5', title: 'Retirement, disposal and scrap', steps: [['Reason, condition, evidence, approver', 'Supervisor · Request disposal'], ['Validations', 'Biologist · Workshop / VIC'], ['Approve or reject', 'Approver'], ['Final disposition', 'Supervisor · record kept, never deleted']] },
+  { ref: '5.6', title: 'Periodic audit', steps: [['Audit list for the site', 'AFM · New audit'], ['Check every item', 'Auditor · Verified, mismatch, not found'], ['Assign exceptions', 'AFM'], ['Resolve', 'Custodian'], ['Close audit', 'AFM']] },
+];
+const total = PHASES.reduce((n, p) => n + p.screens.length, 0);
+document.getElementById('app').innerHTML =
+  kPageHeader({ title: 'Tablet flow', sub: `Enrichment & Furnishing · ${PHASES.length} phases · ${total} screens`, actions: kButton({ label: 'Open app', kind: 'primary', href: 'index.html?reset=1' }) })
+  + PHASES.map(p => kCard({ eyebrow: 'Phase ' + p.n, title: p.title, action: kPill(p.screens.length + ' screens', 'info'),
+      body: p.screens.map(s => kAuditCard({ name: s.title, about: s.hash, status: kPill(s.kind, 'info'), facts: [{ label: 'Role', value: WHO[s.who][1] }, { label: 'PRD', value: s.ref }], href: open(s.who, s.hash) })).join('') })).join('')
+  + FLOWS.map(f => kCard({ eyebrow: 'Workflow §' + f.ref, title: f.title, body: kTimeline(f.steps.map((s, i) => ({ title: s[0], text: s[1], current: i === f.steps.length - 1 }))) })).join('');
+</script>
+</body>
+</html>

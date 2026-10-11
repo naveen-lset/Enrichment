@@ -1,0 +1,32 @@
+/* App text styles = the 17 "Antz text/*" Figma text styles, exactly as measured.
+   src: Figma vspP2iZ2eWNJySESUJ3yc0 node 927:1705 (get_variable_defs, 2026-09-20)
+   All are Inter, letter-spacing 0 unless noted. Weights are the Figma values; 700 is kept where Figma says Bold.
+   Line-height: the style summary reports 100, but every measured component (get_design_context on 1144:7426, 1156:10089, 1180:8039, 1218:5261 …)
+   renders text with Figma's Auto line-height (leading-normal ≈ 1.21 for Inter). Auto is the truth; 100% crushed title/subtitle pairs. Fixed system-wide 2026-09-20. */
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap');   /* upright only: Figma's Inter Italic is the slanted upright (Inter 3), not Google's redrawn true italic (Inter 4) — with no italic face loaded the browser slants Inter itself, matching Figma (Swathi 2026-09-21: 'it doesn't look like Inter') */
+body { font-family: Inter, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; }
+button, input, textarea, select { font-family: inherit; }   /* form controls take the page font; browsers otherwise give them the system font (Swathi caught a count rendering off-library, 2026-09-21). Size / weight still come from the .t-* class on the element. */
+
+.t-display-title   { font-size: 48px; font-weight: 600; line-height: normal; letter-spacing: 0; }      /* src: Antz text/Antz_Display_Title */
+.t-large-title     { font-size: 36px; font-weight: 600; line-height: normal; letter-spacing: 0; }      /* src: Antz text/Antz_Large_Title */
+.t-stat-title      { font-size: 28px; font-weight: 600; line-height: normal; letter-spacing: 0; }      /* src: Antz text/Antz_Stat_Title */
+.t-major-title     { font-size: 24px; font-weight: 600; line-height: normal; letter-spacing: 0; }      /* src: Antz text/Antz_Major_Title */
+.t-major-medium    { font-size: 24px; font-weight: 500; line-height: normal; letter-spacing: 0; }      /* src: Antz text/Antz_Major_Medium */
+.t-medium-title    { font-size: 20px; font-weight: 700; line-height: normal; letter-spacing: 0; }      /* src: Antz text/Antz_Medium_Title — Bold in Figma. REJECTED by Swathi 2026-09-21: do not use in new designs; use .t-medium-medium (500) or .t-minor-title (600). Kept so old measurements still render */
+.t-medium-medium   { font-size: 20px; font-weight: 500; line-height: normal; letter-spacing: 0; }      /* src: Antz text/Antz_Medium_Medium */
+.t-minor-title     { font-size: 16px; font-weight: 600; line-height: normal; letter-spacing: 0; }      /* src: Antz text/Antz_Minor_Title */
+.t-minor-medium    { font-size: 16px; font-weight: 500; line-height: normal; letter-spacing: 0; }      /* src: Antz text/Antz_Minor_Medium */
+.t-minor-regular   { font-size: 16px; font-weight: 400; line-height: normal; letter-spacing: 0; }      /* src: Antz text/Antz_Minor_Regular */
+.t-minor-reg-italic{ font-size: 16px; font-weight: 400; line-height: normal; letter-spacing: 0; font-style: italic; font-synthesis: style; } /* src: Antz_Minor_Reg_Italic — rendered as slanted Inter (no italic face loaded on purpose, see @import) */
+.t-body-title      { font-size: 14px; font-weight: 600; line-height: normal; letter-spacing: 0; }      /* src: Antz text/Antz_Body_Title */
+.t-body-medium     { font-size: 14px; font-weight: 500; line-height: normal; letter-spacing: 0.1px; }  /* src: Antz text/Antz_Body_Medium (ls 0.1) */
+.t-body-regular    { font-size: 14px; font-weight: 400; line-height: normal; letter-spacing: 0; }      /* src: Antz text/Antz_Body_Regular */
+.t-body-reg-italic { font-size: 14px; font-weight: 400; line-height: normal; letter-spacing: 0; font-style: italic; font-synthesis: style; } /* Antz_Body_Reg_Italic — ADDED to the library by Swathi 2026-09-21 (not yet a Figma text style; three tablet frames 609:73824 / 589:42946 / 725:103585 set scientific names in Inter 14 italic). Slanted Inter like .t-minor-reg-italic */
+.t-subtext-title   { font-size: 12px; font-weight: 600; line-height: normal; letter-spacing: 0; }      /* src: Antz text/Antz_Subtext_title */
+.t-subtext-regular { font-size: 12px; font-weight: 400; line-height: normal; letter-spacing: 0; }      /* src: Antz text/Antz_Subtext_Regular */
+.t-small           { font-size: 10px; font-weight: 500; line-height: normal; letter-spacing: 0; }      /* src: Antz text/Antz_Small */
+
+.c-on-surface-variant { color: var(--on-surface-variant); }
+.c-neutral-secondary { color: var(--neutral-secondary); }
+.c-on-primary-container { color: var(--on-primary-container); }
+.c-primary-dark { color: var(--primary-dark); }

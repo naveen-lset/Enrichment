@@ -1,0 +1,32 @@
+/* src/app/app.css — the page shell of the app. It is not a kit component (same role as the starter's templates/frame.css).
+   It draws the app tablet frame (834 × 1194, portrait) and the scroll area. Rules: tokens only, spacing 2 · 4 · 8 · 12 · 16 · 24 · 32,
+   no font size or weight (text takes a .t-* class). */
+body { margin: 0; background: var(--md3-displaybg-secondary); color: var(--md3-on-surface-variant); }
+
+/* the device: bands, the FAB and sheets are placed inside it */
+.device { position: relative; width: 834px; max-width: 100%; height: 1194px; max-height: 100vh; margin: 0 auto; display: flex; flex-direction: column; overflow: hidden; background: var(--md3-background); }
+
+/* the scroll area: 24 px side padding, 24 px between sections; bands reach past the padding with --k-bleed */
+.device > main { flex: 1; min-height: 0; overflow-y: auto; display: flex; flex-direction: column; gap: var(--sp-24); padding: 0 var(--sp-24) var(--sp-24); --k-bleed: var(--sp-24); --k-gutter: var(--sp-24); }
+.device > main > * { flex-shrink: 0; }
+/* bands join: the level-1 tabs join the header band, and the toolbar sits directly under them (UI-7) */
+.device > main > .k-ph + .k-tabs, .device > main > .k-tabs + .k-toolbar, .device > main > .k-ph + .k-toolbar { margin-top: calc(-1 * var(--sp-24)); }
+/* pages leave room for the FAB */
+.device > main { padding-bottom: calc(4 * var(--sp-24)); }
+
+/* list cards (C-18) are peers: 12 apart */
+.device > main > .k-acard + .k-acard { margin-top: calc(var(--sp-12) - var(--sp-24)); }
+
+/* inside a roomy card, the ring, trend and bar rows are separate blocks: 24 apart (C-61) */
+.k-card > .k-ring + .k-trend, .k-card > .k-ring + .k-barrows, .k-card > .k-trend + .k-barrows { margin-top: var(--sp-24); }
+
+/* blocks inside a sheet body sit 16 apart */
+.k-sheet__b > * + * { margin-top: var(--sp-16); }
+
+/* the toast: bottom centre of the device, above the action bar */
+.toast-slot { position: absolute; left: 0; right: 0; bottom: calc(4 * var(--sp-24)); z-index: 30; display: flex; justify-content: center; pointer-events: none; }
+.toast-slot:empty { display: none; }
+
+/* the open speed dial: a layer over the device; the dial sits at the bottom right, the FAB in it keeps its place */
+.fab-slot { position: absolute; inset: 0; z-index: 15; display: flex; align-items: flex-end; justify-content: flex-end; }
+.fab-slot:empty { display: none; }

@@ -1,0 +1,10 @@
+{
+  "name": "antz-enrichment-tablet",
+  "version": "0.1.0",
+  "private": true,
+  "description": "ANTZ Enrichment & Furnishing Management: tablet flow prototype built with the GRC v2 kit",
+  "scripts": {
+    "start": "python3 -m http.server 8834",
+    "test": "node --test tests/model.test.mjs"
+  }
+}
