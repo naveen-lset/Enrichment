@@ -20,7 +20,7 @@ const STATUS = {
   transit: 'In transit', missing: 'Missing', retired: 'Retired / disposed', scrapped: 'Scrapped',
 };
 const COND = { good: 'Good', needsrepair: 'Needs repair', damaged: 'Damaged', unsafe: 'Unsafe / unusable', beyond: 'Beyond repair', na: 'Not assessed' };
-const ROLE = { sup: 'Supervisor / custodian', afm: 'AFM / facility manager', bio: 'Biologist', ws: 'Workshop / VIC', mgmt: 'Management approver', admin: 'ANTZ admin' };
+const ROLE = { sup: 'Supervisor / custodian', afm: 'AFM / facility manager', bio: 'Biologist', ws: 'Workshop / VIC', mgmt: 'Management approver', admin: 'ANTZ admin', keeper: 'Keeper' };
 const AUDIT_OUT = { verified: 'Verified', locmismatch: 'Location mismatch', condmismatch: 'Condition mismatch', notfound: 'Not found', action: 'Action required' };
 const DISPOSITION = { disposed: 'Disposed', scrapped: 'Scrapped', donated: 'Donated / transferred', decommissioned: 'Decommissioned' };
 const ACTIVE = ['available', 'inuse', 'storage', 'assessment', 'repair', 'transit', 'missing'];
@@ -45,9 +45,9 @@ function log(it, byId, act, o = {}) {
 const where = it => it.status === 'transit' ? 'In transit' : [locOf(it.loc)?.name, sectionOf(it.section)?.name].filter(Boolean).join(' · ');
 
 /* ---------- permissions (PRD §11; configurable, this is the proposed starting point) ---------- */
-// sup acts on items of its own sections; afm on its own sites; the others by role. Nobody can delete a tracked item.
+// sup and keeper act on items of their own sections; afm on its own sites; the others by role. Nobody can delete a tracked item.
 const CAN = {
-  receive: ['sup', 'afm', 'admin'], move: ['sup', 'afm', 'admin'], flag: ['sup', 'afm', 'bio', 'ws', 'admin'],
+  receive: ['sup', 'afm', 'admin'], move: ['sup', 'afm', 'admin'], flag: ['sup', 'afm', 'bio', 'ws', 'admin', 'keeper'],
   verifyBio: ['bio'], assessTech: ['ws'], decide: ['sup', 'afm', 'admin'], repairStart: ['sup', 'ws', 'afm', 'admin'], repairDone: ['sup', 'ws', 'afm', 'admin'],
   transfer: ['sup', 'afm', 'admin'], ack: ['sup', 'afm', 'admin'], transferException: ['afm', 'admin'],
   dispose: ['sup', 'afm', 'admin'], validateBio: ['bio'], validateTech: ['ws'], approve: ['mgmt', 'afm'], completeDisposal: ['sup', 'afm', 'admin'],
@@ -56,7 +56,7 @@ const CAN = {
 };
 function scoped(p, it) {
   if (!it) return true;
-  if (p.role === 'sup') return p.sections.includes(it.section);
+  if (p.role === 'sup' || p.role === 'keeper') return p.sections.includes(it.section);
   if (p.role === 'afm') return p.sites.includes(it.site);
   return true;
 }

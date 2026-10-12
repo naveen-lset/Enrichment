@@ -3,7 +3,7 @@
 
 /* ============ state ============ */
 const UI = { me: 'P-RAVI', site: 'S-MAIN', o: 'landscape', sb: true, peek: false, q: {}, f: {}, tab: {}, labels: [], dsel: '' };
-const STORE = 'antz-enrichment-ipad-1';
+const STORE = 'antz-enrichment-ipad-2';
 const $ = (s, r = document) => r.querySelector(s);
 const $$ = (s, r = document) => [...r.querySelectorAll(s)];
 const VIEWS = {}, DO = {}, IN = {};
@@ -16,7 +16,7 @@ function load() {
   } catch (e) { /* ignore */ }
   return false;
 }
-function fresh() { boot(); workSeed(); setNow(NOW_DEFAULT); }
+function fresh() { boot(); workSeed(); activitySeed(); setNow(NOW_DEFAULT); }
 const snapshot = () => ({ d: JSON.stringify(D), now: nowIs() });
 const restore = s => useData(JSON.parse(s.d), s.now);
 // each action moves the demo clock on a few minutes, so the history keeps its order and the status bar clock runs
@@ -56,7 +56,7 @@ const locName = id => (locOf(id) || {}).name || '';
 const secName = id => (sectionOf(id) || {}).name || '';
 const siteName = id => (siteOf(id) || {}).name || '';
 const catCode = it => (catOf(it) || {}).code || '';
-const ROLE_SHORT = { sup: 'Supervisor', afm: 'Facility manager', bio: 'Biologist', ws: 'Workshop / VIC', mgmt: 'Approver', admin: 'Admin' };
+const ROLE_SHORT = { sup: 'Supervisor', afm: 'Facility manager', bio: 'Biologist', ws: 'Workshop / VIC', mgmt: 'Approver', admin: 'Admin', keeper: 'Keeper' };
 
 /* ============ scope: the site picked in the sidebar ============ */
 const mySites = () => me().sites;
@@ -88,7 +88,7 @@ const OTONE = { verified: 'ok', locmismatch: 'warn', condmismatch: 'warn', notfo
 
 function seg(id, opts, cur, act, cls = '') {
   const i = opts.findIndex(o => o.v === cur), from = SEGIDX[id] ?? i;
-  return `<div class="seg ${cls}" data-id="${id}" data-i="${i}" style="--n:${opts.length};--i:${from < 0 ? 0 : from}"><span class="seg__thumb" ${i < 0 ? 'hidden' : ''}></span>${opts.map(o => `<button class="${o.v === cur ? 'on' : ''}" data-do="${act}" data-arg="${esc(o.v)}">${esc(o.t)}</button>`).join('')}</div>`;
+  return `<div class="seg ${cls}" data-id="${id}" data-i="${i}" style="--n:${opts.length};--i:${from < 0 ? 0 : from}"><span class="seg__thumb" ${i < 0 ? 'hidden' : ''}></span>${opts.map(o => `<button class="${o.v === cur ? 'on' : ''}" data-do="${act}" data-arg="${esc(o.v)}">${esc(o.t)}${o.n != null ? ` <span class="seg__n">${o.n}</span>` : ''}</button>`).join('')}</div>`;
 }
 function ring(p, size = 64, stroke = 7, tone = 'ok', label = '') {
   const r = (size - stroke) / 2, c = 2 * Math.PI * r, off = c * (1 - Math.max(0, Math.min(100, p || 0)) / 100);
@@ -168,14 +168,15 @@ function render() {
     main.dataset.layout = V.layout;
     // ANTZ app shell: one white header, full-width filter bands, then the panes on the page background
     main.innerHTML = `<header class="hdr" id="hdr"></header>` + (V.layout === 'split'
-      ? `<div class="bands"><div id="ltabs"></div><div id="lsearch"></div></div>
+      ? `<div class="bands"><div id="ltop"></div><div id="ltabs"></div><div id="lsearch"></div></div>
          <div class="panes"><section class="pane pane--list"><div class="scroll" id="lscroll"><div class="pane__pad" id="lrows"></div></div></section>
          <section class="pane pane--detail"><div class="scroll" id="dscroll"><div class="pane__pad" id="dbody"></div></div></section></div>`
-      : `<div class="panes"><section class="pane pane--full"><div class="scroll" id="fscroll"><div class="pane__pad pane__pad--full" id="fbody"></div></div></section></div>`);
+      : `<div class="bands"><div id="ltop"></div><div id="ltabs"></div></div><div class="panes"><section class="pane pane--full"><div class="scroll" id="fscroll"><div class="pane__pad pane__pad--full" id="fbody"></div></div></section></div>`);
   }
   let right = '';
   if (V.layout === 'split') {
     const L = V.list(r), hk = r.v + '|' + UI.site;
+    topBand(L.top);
     const tabs = L.tabs ? `<div class="band band--tabs">${L.tabs}</div>` : '';
     if ($('#ltabs')._html !== tabs) { $('#ltabs').innerHTML = tabs; $('#ltabs')._html = tabs; placeSegs($('#ltabs')); }
     if ($('#lsearch')._key !== hk) { $('#lsearch')._key = hk; $('#lsearch').innerHTML = L.search ? `<div class="band band--search">${searchField(r.v, L.search)}${L.filter ? `<button class="sqbtn" data-do="${L.filter.do}" aria-label="Filters">${ic('setup', 20)}<span class="dot" ${L.filter.n ? '' : 'hidden'}>${L.filter.n}</span></button>` : ''}</div>` : ''; }
@@ -195,13 +196,18 @@ function render() {
   } else {
     const F = V.full(r);
     right = F.right || '';
+    topBand(F.top);
+    const tabs = F.tabs ? `<div class="band band--tabs">${F.tabs}</div>` : '';
+    if ($('#ltabs')._html !== tabs) { $('#ltabs').innerHTML = tabs; $('#ltabs')._html = tabs; placeSegs($('#ltabs')); }
     paint($('#fbody'), F.html, r.v + '|' + UI.site + '|' + (F.key || ''));
   }
-  const hdr = header(V.label || '', right);
+  const hdr = header(V.hdr || V.label || '', right);
   if ($('#hdr')._html !== hdr) { $('#hdr').innerHTML = hdr; $('#hdr')._html = hdr; placeSegs($('#hdr')); }
   paintSlide(V, r);
   if (SH) refreshSheet();
 }
+// a module's own tab bar (underlined, like the ANTZ diet module) above the filter bands
+function topBand(html) { const t = html ? `<div class="band band--mod">${html}</div>` : '', el = $('#ltop'); if (el && el._html !== t) { el.innerHTML = t; el._html = t; } }
 function header(title, right) {
   const p = me(), n = notifications(UI.me).length, sites = mySites();
   return `${sideHidden() ? sbToggle() : ''}<h1 class="hdr__t">${esc(title)}</h1><div class="hdr__sp"></div>${right}
@@ -238,11 +244,11 @@ function setPeek(on) { UI.peek = on; $('.app').classList.toggle('sb-peek', on); 
 DO.sidebar = () => { if (UI.o === 'portrait') setPeek(!UI.peek); else { UI.sb = !UI.sb; $('.app').classList.toggle('sb-off', !UI.sb); save(); setTimeout(render, 10); } };
 DO.peekClose = () => setPeek(false);
 function paintSidebar(r) {
-  const groups = [[null, ['today', 'overview']], ['Items', ['register', 'receipts', 'labels']], ['Workflows', ['repairs', 'transfers', 'audits', 'disposals']], ['Insights', ['reports']], ['Admin', ['setup']]];
+  const groups = [[null, ['today', 'overview', 'sessions']], ['Items', ['register', 'receipts', 'labels']], ['Workflows', ['repairs', 'transfers', 'audits', 'disposals']], ['Insights', ['reports']], ['Admin', ['setup']]];
   const nav = groups.map(([g, keys]) => {
     const items = keys.filter(k => VIEWS[k] && (!VIEWS[k].allow || VIEWS[k].allow())).map(k => {
       const V = VIEWS[k], c = V.count ? V.count() : null, hot = c && typeof c === 'object';
-      return `<button class="sb__item ${r.v === k ? 'on' : ''}" data-go="#/${k}">${ic(V.icon, 20)}<span>${V.label}</span>${hot && c.n ? `<span class="sb__count hot">${c.n}</span>` : ''}</button>`;
+      return `<button class="sb__item ${r.v === k || VIEWS[r.v]?.group === k ? 'on' : ''}" data-go="#/${k}">${ic(V.sbIcon || V.icon, 20)}<span>${V.sbLabel || V.label}</span>${hot && c.n ? `<span class="sb__count hot">${c.n}</span>` : ''}</button>`;
     }).join('');
     return items ? `<div class="sb__group">${g ? `<div class="sb__label">${g}</div>` : ''}${items}</div>` : '';
   }).join('');
@@ -255,7 +261,7 @@ function paintSidebar(r) {
 }
 DO.site = s => { UI.site = s; closePop(); save(); render(); };
 DO.who = (a, el) => {
-  const order = ['sup', 'afm', 'bio', 'ws', 'mgmt', 'admin'];
+  const order = ['keeper', 'sup', 'afm', 'bio', 'ws', 'mgmt', 'admin'];
   const ppl = D.people.slice().sort((x, y) => order.indexOf(x.role) - order.indexOf(y.role));
   popover(el, `<div class="pop__h">Sign in as</div>${ppl.map(p => `<button class="mi ${p.id === UI.me ? 'on' : ''}" data-do="signIn" data-arg="${p.id}">${av(p.id, 32)}<span><span>${esc(p.name)}</span><span class="mi__s">${ROLE_SHORT[p.role]}${p.sections.length ? ' · ' + p.sections.map(secName).join(', ') : ''}</span></span>${p.id === UI.me ? `<span class="mi__e">${ic('check', 18)}</span>` : ''}</button>`).join('')}
     <div class="mi-sep"></div><button class="mi" data-do="guide">Demo guide</button><button class="mi danger" data-do="reset">Reset demo data</button>`, { w: 320 });
@@ -417,7 +423,7 @@ const custodiansOf = secId => { const s = sectionOf(secId); return p => (p.role 
 /* ============ spotlight search ============ */
 DO.search = () => {
   closePop(true);
-  $('#sheet').innerHTML = `<div class="layer"><div class="layer__scrim" data-do="spotClose"></div><div class="spot"><div class="spot__in">${ic('search', 22)}<input id="spotq" placeholder="Items, deliveries, disposals, audits" data-in="spot" autocomplete="off"><button class="text-btn" data-do="spotClose">Cancel</button></div><div class="spot__r" id="spotr">${spotRows('')}</div></div></div>`;
+  $('#sheet').innerHTML = `<div class="layer"><div class="layer__scrim" data-do="spotClose"></div><div class="spot"><div class="spot__in">${ic('search', 22)}<input id="spotq" placeholder="Items, activities, species, audits" data-in="spot" autocomplete="off"><button class="text-btn" data-do="spotClose">Cancel</button></div><div class="spot__r" id="spotr">${spotRows('')}</div></div></div>`;
   setTimeout(() => $('#spotq')?.focus(), 60);
 };
 DO.spotClose = () => { const l = $('#sheet .layer'); if (!l) return; l.classList.add('out'); setTimeout(() => { if ($('#sheet .layer.out')) $('#sheet').innerHTML = ''; }, 220); };
@@ -431,10 +437,14 @@ function spotRows(q) {
   const tks = D.tickets.filter(t => match(q, t.id, t.name, t.mt, t.ws)).slice(0, 4);
   const dps = D.disposals.filter(d => match(q, d.id, itemOf(d.item).name, d.reason)).slice(0, 4);
   const aus = D.audits.filter(a => match(q, a.id, a.period, siteName(a.site))).slice(0, 3);
+  const acs = A().activities.filter(a => match(q, a.id, a.name, a.sub)).slice(0, 4);
+  const sps = A().species.filter(s => match(q, s.name, s.sci)).slice(0, 4);
   const out = [
     its.length && `<div class="spot__g">Items</div>${menu(its.map(it => ({ icon: glyphOf(it.name), t: it.name, s: `${it.id} · ${STATUS[it.status]} · ${where(it)}`, go: '#/register/' + it.id })))}`,
     tks.length && `<div class="spot__g">Deliveries</div>${menu(tks.map(t => ({ icon: 'receipts', t: t.name, s: `${t.id} · ${t.status === 'dispatched' ? 'Waiting' : 'Received'}`, go: '#/receipts/' + t.id })))}`,
     dps.length && `<div class="spot__g">Disposals</div>${menu(dps.map(d => ({ icon: 'disposals', t: itemOf(d.item).name, s: `${d.id} · ${DSTATE[d.state][0]}`, go: '#/disposals/' + d.id })))}`,
+    acs.length && `<div class="spot__g">Activities</div>${menu(acs.map(a => ({ t: a.name, s: `${a.id} · ${ACT_TYPE[a.type]}`, go: '#/activities/' + a.id })))}`,
+    sps.length && `<div class="spot__g">Species</div>${menu(sps.map(s => ({ t: s.name, s: s.sci, go: '#/species/' + s.id })))}`,
     aus.length && `<div class="spot__g">Audits</div>${menu(aus.map(a => ({ icon: 'audits', t: `${a.period} audit`, s: `${a.id} · ${siteName(a.site)}`, go: '#/audits/' + a.id })))}`,
   ].filter(Boolean).join('');
   return out || empty('search', 'No results', `Nothing matches “${q}”.`, true);

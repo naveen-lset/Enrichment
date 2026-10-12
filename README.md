@@ -23,7 +23,7 @@ Open **http://localhost:8834/**.
 - On an iPad, or with `?bare=1`, it fills the screen and follows the device orientation.
 
 ```sh
-npm test                   # 26 tests of the business rules
+npm test                   # 34 tests of the business rules (26 PRD, 8 activity)
 npm run test:ui            # UI checks at 4 iPad sizes (needs npm start and Google Chrome)
 ```
 

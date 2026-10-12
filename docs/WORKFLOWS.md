@@ -257,3 +257,27 @@ Use **Demo guide** (top bar) to sign in as the right person. Use **Reset** betwe
 | 21 | Close an edited form | Discard changes / Keep editing |
 | 22 | Overview › tile | Items list opens with the matching filter |
 | 23 | ⌘K › "hammock" | Items, deliveries and disposals that match |
+
+## 11 · Enrichment activities (Proposed — `src/model/activity.js`, screens in `src/ipad/activity-views.js`)
+
+Source: Figma file `5iizWNcFdePpGJpenKpaTG` ("Enrichment Module Mobile App"), flows `44:374` and `553:801`. These flows are **not in PRD v1.0**; the whole section is **Proposed** and needs scope sign-off. Drawn in the ANTZ app style (diet-request app): session cards like diet request cards, Species like Diet by Species.
+
+**Names (to avoid the two clashes with the PRD):** *Activity type* (social, cognitive, environmental, food-based, sensory), never "category" (the PRD's A–D tracking category). *Observation* (how the animal responded), never "assessment" (the PRD's item condition check).
+
+| Step | Who | Screen | Rule |
+|---|---|---|---|
+| Create activity | keeper, supervisor, biologist, AFM, admin | + › New activity | Name, type, goal and at least one species; a duplicate name is refused. Starts **Awaiting approval**. |
+| Approve | biologist only | Activities › Awaiting approval, My tasks | Approve, or send back with a note (**Changes requested**); the author edits and resubmits. |
+| Assign | supervisor (own sections), AFM (own sites), admin | Species › Recommended, + › Assign activity | Only an approved activity, for a species it is approved for, in an enclosure where the animals live, to a keeper of that section; species-wide or one animal; daily / alternate days / weekly / once, morning / midday / afternoon. |
+| Inventory check | — | session cards, Assign sheet, Species | Reads the item register for each material at the enclosure: **ready** (usable item there), **in store** (usable in a store of the section), **blocked** (under assessment / repair / unsafe), **not in the register**. Uses `usableForAnimals()` from model.js. |
+| Run and record | the assigned keeper (and supervisor / AFM / admin) | Sessions › Record, My tasks | One record per plan and day, not before the day. Materials used must be cleared items at that enclosure; each gets a *Used in activity* event in its history. Engagement, behaviours, successful (yes / partly / no), 1–5 rating, comments, photos. Or **Skip** with a reason. |
+| Safety incident | keeper | Record session › Safety | The item must be one used in the session. It is flagged **Unsafe** through `flagIssue()`, so it goes into the PRD repair flow (biologist / workshop checks) and leaves animal use. |
+| Material request | keeper, supervisor | + › Request material, session detail | Goes to the section custodian. |
+| Inventory approval | custodian (supervisor), AFM, admin — **not the biologist** | Material requests | **Issue** a usable stored item (moves it to the enclosure through `move()`, splitting a batch) — or **Send to the request module** (needs a reason when a usable item is in store) — or **Decline** with a reason. The request module itself is **Integration**: delivery then arrives in Receipts as today. |
+| Results | everyone | Activity › Results, Species, Reports | Sessions, % successful (partly = half), average rating, safety incidents, behaviours seen; *Activity effectiveness* and *Unused activities* (approved, not assigned or no session in 30 days) reports. |
+
+New role **Keeper** (`ROLE.keeper`): acts in own sections like a supervisor; can report an item issue; cannot move, transfer, receive or dispose. Disposal & Approvals is hidden for keepers.
+
+Prototype limits: no live timer (duration is picked); voice notes, video and the idea gallery from Figma are not built; animals and species are sample data and must come from the ANTZ animal module (**Integration**). The Figma screens are a phone app; this prototype draws them for the iPad.
+
+Open decisions: who may create activities (all staff, or supervisors and biologists only); whether a keeper can record a colleague's session; whether "partly" counts as half a success; the 30-day window for *unused*.

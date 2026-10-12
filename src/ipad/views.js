@@ -73,7 +73,7 @@ const HICON = { Received: ['receive', 'ok'], Registered: ['newitem', 'ok'], Move
   'Transfer dispatched': ['truck', 'info'], 'Transfer received': ['ok', 'ok'], 'Transfer completed by exception': ['alert', 'attn'], 'Custodian changed': ['user', ''], 'Disposal requested': ['disposals', 'attn'],
   'Disposal approved': ['shield', 'ok'], 'Disposal rejected': ['no', 'bad'], 'Disposal completed': ['disposals', ''], 'Audit verified': ['audits', 'ok'], 'Location corrected in audit': ['pin', 'warn'],
   'Marked missing': ['notfound', 'bad'], 'Audit exception': ['alert', 'warn'], 'Exception assigned': ['user', ''], 'Exception resolved': ['ok', 'ok'], Found: ['ok', 'ok'], 'Label printed': ['printer', ''],
-  'Quantity split': ['layers', ''], 'Split from batch': ['layers', ''] };
+  'Quantity split': ['layers', ''], 'Split from batch': ['layers', ''], 'Used in activity': ['sparkle', 'info'] };
 function timeline(hist, withItem) {
   return `<div class="tl">${hist.map(h => {
     const [i, t] = HICON[h.act] || (h.act.startsWith('Disposal validated') ? ['shield', 'info'] : ['history', '']);
@@ -100,6 +100,12 @@ function pending() {
     if (t.kind === 'assign') { doo = null; go = '#/audits/' + t.ref; }
     return { icon, tone, k: t.label, t: t.title, s: t.meta.filter(Boolean).join(' · '), due: t.due, go, do: doo, arg, btn: t.label };
   });
+  activityTasks(UI.me).forEach(t => {
+    if (t.kind === 'session') out.push({ k: 'Session', t: t.title, s: t.meta.join(' · '), due: t.due, go: '#/sessions/' + t.ref, do: 'actRecord', arg: t.ref, btn: 'Record' });
+    if (t.kind === 'actApprove') out.push({ k: 'Approve activity', t: t.title, s: t.meta[1], due: t.due, go: '#/activities/' + t.ref, do: 'actReviewAct', arg: t.ref, btn: 'Review' });
+    if (t.kind === 'matReview') out.push({ k: 'Material request', t: t.title, s: t.meta[1], due: t.due, go: '#/matreq/' + t.ref, btn: 'Open' });
+    if (t.kind === 'actChanges') out.push({ k: 'Changes requested', t: t.title, s: t.meta[1], due: '', go: '#/activities/' + t.ref, do: 'actResubmit', arg: t.ref, btn: 'Edit' });
+  });
   workTasks(UI.me).forEach(w => {
     const a = auditOf(w.audit), s = a ? auditStats(a) : null;
     if (w.kind === 'audit') out.push({ icon: 'audits', tone: 'info', k: 'Audit', t: w.title, s: `${siteName(a.site)} · ${s.checked} of ${s.n} checked · ${w.id}`, due: w.due, go: '#/audits/' + w.audit, btn: 'Continue' });
@@ -121,13 +127,14 @@ VIEWS.today = {
   full() {
     const list = pending(), today = day(nowIs());
     const groups = [['Overdue', list.filter(t => t.due && t.due < today), 'late'], ['Today', list.filter(t => t.due === today), ''], ['Upcoming', list.filter(t => t.due && t.due > today), ''], ['Anytime', list.filter(t => !t.due), '']].filter(g => g[1].length);
-    const mine = activeItems().filter(it => role() !== 'sup' || me().sections.includes(it.section));
+    const mine = activeItems().filter(it => !['sup', 'keeper'].includes(role()) || me().sections.includes(it.section));
     const cnt = st => mine.filter(i => st.includes(i.status)).length;
     const notes = notifications(UI.me);
     const html = `
       <div class="today"><div class="stack">${card('', groups.length ? `<div class="tasks">${groups.map(([g, ts, c]) => `<div class="tasks__h ${c}">${g}<span>${ts.length}</span></div>${ts.map(taskRow).join('')}`).join('')}</div>` : empty('ok', 'All clear', '', true))}</div>
       <div class="stack">
-        <div class="w"><div class="w__t">${role() === 'sup' ? 'My sections' : esc(siteLabel())}</div><div class="stats4">
+        ${role() === 'keeper' ? keeperToday() : ''}
+        <div class="w"><div class="w__t">${['sup', 'keeper'].includes(role()) ? 'My sections' : esc(siteLabel())}</div><div class="stats4">
           ${[['In use', ['inuse', 'available'], 'ok', 'inuse'], ['In storage', ['storage'], 'info', 'storage'], ['Repair', ['assessment', 'repair'], 'warn', 'attention'], ['Missing', ['missing'], 'bad', 'missing']].map(([l, st, tone, f]) => `<div class="stat" data-do="drill" data-arg="register|st|${f}"><div class="stat__n" data-count="${cnt(st)}">${cnt(st)}</div><div class="stat__l"><i style="background:${SOLID[tone]}"></i>${l}</div></div>`).join('')}
         </div></div>
         ${card('Notifications', notes.length ? `<div style="padding:4px 6px 8px">${notes.slice(0, 6).map(notifRow).join('')}</div>` : empty('bell', 'No notifications', '', true), notes.length > 6 ? `<button class="text-btn" data-do="bell">All ${notes.length}</button>` : '')}
@@ -135,6 +142,12 @@ VIEWS.today = {
     return { title: 'My tasks', html, key: UI.me };
   },
 };
+function keeperToday() {
+  const os = occurrences(day(nowIs()), day(nowIs())).filter(o => o.plan.keeper === UI.me && o.plan.active), todo = os.filter(o => !o.s);
+  const st = [['To record', todo.length, 'warn', 'todo'], ['Recorded', os.filter(o => o.s && o.s.state === 'done').length, 'ok', 'done'], ['Skipped', os.filter(o => o.s && o.s.state === 'skipped').length, '', 'all'], ['Needs materials', todo.filter(o => !checkReady(inventoryCheck(o.plan.activity, o.plan.loc))).length, 'bad', 'todo']];
+  return `<div class="w"><div class="w__t">Sessions today</div><div class="stats4">${st.map(([l, n, tone, chip]) => `<div class="stat" data-do="sesDrill" data-arg="${chip}"><div class="stat__n" data-count="${n}">${n}</div><div class="stat__l"><i style="background:${SOLID[tone]}"></i>${l}</div></div>`).join('')}</div></div>`;
+}
+DO.sesDrill = c => { UI.tab.sessions = 'today'; UI.f.sessions = { chip: c }; go('#/sessions'); };
 DO.tabSet = a => { const [k, v] = a.split('|'); UI.tab[{ rcp: 'receipts', trf: 'transfers', dsp: 'disposals' }[k]] = v; render(); };
 DO.drill = a => { const [v, k, val] = a.split('|'); UI.f[v] = Object.assign({}, UI.f[v], { [k]: val }); go('#/' + v); };
 DO.bell = (a, el) => {
@@ -147,6 +160,9 @@ function createItems() {
     can(UI.me, 'receive') && { icon: 'newitem', t: 'Register existing item', do: 'actRegister' },
     can(UI.me, 'auditCreate') && { icon: 'calendar', t: 'Schedule audit', do: 'actSchedule' },
     can(UI.me, 'labels') && { icon: 'printer', t: 'Print labels', go: '#/labels' },
+    can(UI.me, 'actCreate') && { icon: 'sparkle', t: 'New activity', do: 'actNew' },
+    can(UI.me, 'actAssign') && { icon: 'calendar', t: 'Assign activity', do: 'actAssign' },
+    can(UI.me, 'matRequest') && { icon: 'newitem', t: 'Request material', do: 'actMat' },
   ].filter(Boolean);
 }
 DO.create = (a, el) => popover(el, menu(createItems()), { w: 260 });
@@ -273,6 +289,7 @@ function itemDetail(id, base, compact) {
   const auditLines = D.audits.flatMap(au => au.lines.filter(l => l.item === it.id && l.outcome).map(l => ({ au, l })));
   const wtasks = W().tasks.filter(t => t.item === it.id);
   const disposals = D.disposals.filter(d => d.item === it.id);
+  const used = A().sessions.filter(s => s.materials.includes(it.id)).sort((x, y) => y.at.localeCompare(x.at));
   const RES = { pending: 'Pending', suitable: 'Suitable', unsuitable: 'Unsuitable', repairable: 'Repairable', beyond: 'Beyond repair' };
   let body = '';
   if (tab === 'overview') {
@@ -292,10 +309,11 @@ function itemDetail(id, base, compact) {
       sec('Repairs', [...(r ? [r] : []), ...(it.repairs || [])].map(x => `<div class="row" style="cursor:default"><div class="row__b"><div class="row__t">${esc(x.issue)}</div><div class="row__s">${x.id} · ${rel(x.opened)}${x.done ? ' · ' + esc(x.done.notes || '') : ''}</div></div>${pill({ assessment: 'Assessment', approved: 'Approved', repair: 'In repair', beyond: 'Beyond repair', done: 'Repaired', cleared: 'Cleared', closed: 'Closed' }[x.state], x.state === 'done' || x.state === 'cleared' ? 'ok' : x.state === 'beyond' ? 'bad' : 'warn')}</div>`)),
       sec('Transfers', transfers.map(t => `<div class="row" data-go="#/transfers/${t.id}"><div class="row__b"><div class="row__t">${esc(secName(t.from.section))} → ${esc(secName(t.to.section))}</div><div class="row__s">${t.id} · ${rel(t.dispatched)}${t.ref ? ' · ' + esc(t.ref) : ''}</div></div>${pill(t.ack ? (t.exception ? 'By exception' : 'Received') : 'In transit', t.ack ? 'ok' : 'info')}</div>`)),
       sec('Audits', auditLines.map(({ au, l }) => `<div class="row" data-go="#/audits/${au.id}"><div class="row__b"><div class="row__t">${esc(au.period)} audit</div><div class="row__s">${au.id} · ${rel(l.at)}${l.note ? ' · ' + esc(l.note) : ''}</div></div>${pill(AUDIT_OUT[l.outcome], OTONE[l.outcome])}</div>`)),
+      sec('Activity sessions', used.slice(0, 10).map(s => { const p = planOf(s.plan); return `<div class="row" data-go="#/sessions/${p.id}@${s.date}"><div class="row__b"><div class="row__t">${esc(activityOf(s.activity).name)}</div><div class="row__s">${s.id} · ${fs(s.date)} · ${esc(planName(p))}</div></div>${s.safety && s.safety.item === it.id ? pill('Safety incident', 'bad') : ''}</div>`; })),
       sec('Disposal', disposals.map(d => `<div class="row" data-go="#/disposals/${d.id}"><div class="row__b"><div class="row__t">${esc(d.reason)}</div><div class="row__s">${d.id} · ${rel(d.at)}</div></div>${dPill(d)}</div>`)),
     ].join('') || empty('layers', 'No linked work', '', true);
   }
-  const counts = { work: [...(r ? [r] : []), ...(it.repairs || [])].length + transfers.length + auditLines.length + wtasks.length + disposals.length };
+  const counts = { work: [...(r ? [r] : []), ...(it.repairs || [])].length + transfers.length + auditLines.length + wtasks.length + disposals.length + Math.min(used.length, 10) };
   const html = `<div class="hero"><div class="hero__b"><h2 class="hero__t">${esc(it.name)}</h2><div class="hero__s"><span class="num">${esc(it.id)}</span>·<span>${esc(c.code)} · ${it.mode === 'batch' ? 'Group' : 'Individual'}</span></div><div class="hero__p">${stPill(it, true)}${cdPill(it, true)}</div></div></div>
     ${seg('itab', [{ v: 'overview', t: 'Overview' }, { v: 'history', t: `History` }, { v: 'work', t: `Linked${counts.work ? ' · ' + counts.work : ''}` }], tab, 'itemTab', 'seg--block seg--lg tabs')}
     <div style="margin-top:16px">${body}</div>`;
@@ -388,7 +406,7 @@ VIEWS.transfers = {
 
 /* ============ Disposal & Approvals ============ */
 VIEWS.disposals = {
-  label: 'Disposal & Approvals', icon: 'disposals', layout: 'split',
+  label: 'Disposal & Approvals', icon: 'disposals', layout: 'split', allow: () => role() !== 'keeper',
   count: () => { const n = D.disposals.filter(d => ['validation', 'approval', 'approved'].includes(d.state) && inSite(itemOf(d.item))).length; return n; },
   list(r) {
     const q = UI.q.disposals || '', tab = UI.tab.disposals || 'open';
@@ -428,8 +446,7 @@ VIEWS.audits = {
     } else if (tab === 'schedules') {
       rows = W().schedules.filter(inSite).map(s => { const nx = nextOccurrence(s); return `<div class="row ${r.id === s.id ? 'on' : ''}" data-go="#/audits/${s.id}"><div class="row__b"><div class="row__t">${esc(templateOf(s.template).name)}</div><div class="row__s">${esc(siteName(s.site))} · ${FREQ[s.freq].t}</div></div><div class="row__e"><span class="row__m">Next ${esc(nx?.period || '—')}</span></div></div>`; }).join('');
     } else rows = W().templates.map(t => `<div class="row ${r.id === t.id ? 'on' : ''}" data-go="#/audits/${t.id}"><div class="row__b"><div class="row__t">${esc(t.name)}</div><div class="row__s">${TPL_KIND[t.kind]} · ${plural(t.checks.length, 'check')}</div></div></div>`).join('');
-    return { title: 'Inspections & Audits', tabs: `${seg('atab', [{ v: 'sessions', t: 'Sessions' }, { v: 'schedules', t: 'Schedules' }, { v: 'templates', t: 'Templates' }], tab, 'audTab', 'seg--block')}`, rows: `<div class="rows">${rows || empty('audits', 'Nothing here', '', true)}</div>`,
-      right: can(UI.me, 'auditCreate') ? `<button class="icon-btn" data-do="actSchedule" aria-label="Schedule audit">${ic('plus', 23)}</button>` : '' };
+    return { title: 'Inspections & Audits', tabs: `${seg('atab', [{ v: 'sessions', t: 'Sessions' }, { v: 'schedules', t: 'Schedules' }, { v: 'templates', t: 'Templates' }], tab, 'audTab', 'seg--block')}`, rows: `<div class="rows">${rows || empty('audits', 'Nothing here', '', true)}</div>` };
   },
   detail(r) {
     if (r.id.startsWith('SCH')) return scheduleDetail(r.id);
@@ -487,12 +504,13 @@ function templateDetail(id) {
 
 /* ============ Reports ============ */
 const REPORTS = [['register', 'Site item register', 'register'], ['status', 'Items by status', 'overview'], ['storage', 'Storage inventory', 'layers'], ['repairs', 'Repair backlog and ageing', 'repairs'], ['transfers', 'Transfer history', 'transfers'],
-  ['missing', 'Missing items and exceptions', 'notfound'], ['disposals', 'Disposal and scrap history', 'disposals'], ['reuse', 'Repair, reuse and rotation', 'reset'], ['audit', 'Audit compliance', 'audits']];
+  ['missing', 'Missing items and exceptions', 'notfound'], ['disposals', 'Disposal and scrap history', 'disposals'], ['reuse', 'Repair, reuse and rotation', 'reset'], ['audit', 'Audit compliance', 'audits'],
+  ['effect', 'Activity effectiveness', 'sparkle'], ['unused', 'Unused activities', 'sparkle']];
 VIEWS.reports = {
   label: 'Reports', icon: 'reports', layout: 'split', allow: R('sup', 'afm', 'admin', 'mgmt'),
   list(r) {
     const rep = report({ site: UI.site === 'all' ? '' : UI.site }), cur = r.id || 'register';
-    const val = { register: rep.total, status: rep.active, storage: rep.storage.length, repairs: rep.repairs.length, transfers: rep.transfers.length, missing: rep.missing.length + rep.exceptions.length, disposals: rep.disposals.length, reuse: rep.moves, audit: rep.accuracy == null ? '—' : rep.accuracy + '%' };
+    const val = { register: rep.total, status: rep.active, storage: rep.storage.length, repairs: rep.repairs.length, transfers: rep.transfers.length, missing: rep.missing.length + rep.exceptions.length, disposals: rep.disposals.length, reuse: rep.moves, audit: rep.accuracy == null ? '—' : rep.accuracy + '%', effect: A().activities.filter(a => activityStats(a.id).n).length, unused: unusedActivities().length };
     return { title: 'Reports', rows: `<div class="rows">${REPORTS.map(([k, t]) => lrow({ href: '#/reports/' + k, on: cur === k, t, right: `<span class="row__v">${val[k]}</span>` })).join('')}</div>` };
   },
   detail(r) {
@@ -522,6 +540,8 @@ VIEWS.reports = {
     if (k === 'disposals') body = card('', `${tbl(['Item', 'Reason', 'Requested', 'Outcome'], rep.disposals.slice().sort((a, b) => b.at.localeCompare(a.at)).map(d => ({ id: d.id, c: [`<b>${esc(itemOf(d.item).name)}</b><div class="row__s">${d.id}</div>`, esc(d.reason), fs(d.at), d.outcome ? DISPOSITION[d.outcome] : DSTATE[d.state][0]] })), x => '#/disposals/' + x.id)}`);
     if (k === 'reuse') body = `<div class="grid">${[['Repairs completed', rep.repaired, 'repairs'], ['Transfers reused', rep.reused, 'transfers'], ['Rotations', rep.moves, 'move'], ['Disposal compliance', rep.compliance == null ? '—' : rep.compliance + '%', 'shield']].map(([l, v, i]) => `<div class="w kpi"><div class="w__h"><span class="tile tile--k">${ic(i)}</span>${l}</div><div class="kpi__n">${v}</div></div>`).join('')}</div>`;
     if (k === 'audit') { const list = D.audits.filter(inSite); body = card('', `${tbl(['Audit', 'Site', 'Checked', 'Accuracy', 'State'], list.map(a => { const s = auditStats(a); return { id: a.id, c: [`<b>${esc(a.period)}</b><div class="row__s">${a.id}</div>`, esc(siteName(a.site)), `${s.checked}/${s.n}`, s.accuracy == null ? '—' : s.accuracy + '%', a.state === 'closed' ? 'Closed' : 'Open'] }; }), x => '#/audits/' + x.id)}`); }
+    if (k === 'effect') body = card('', `${tbl([], A().activities.map(a => ({ a, s: activityStats(a.id) })).filter(x => x.s.n).sort((x, y) => y.s.success - x.s.success || y.s.rating - x.s.rating).map(({ a, s }) => ({ id: a.id, c: [`<b>${esc(a.name)}</b><div class="row__s">${a.id}</div>`, ACT_TYPE[a.type], plural(s.n, 'session'), `rating ${s.rating.toFixed(1)}`, s.safety ? plural(s.safety, 'safety incident') : '', `<span class="row__v">${s.success}%</span>`] })), x => '#/activities/' + x.id)}`);
+    if (k === 'unused') body = card('', `${tbl([], unusedActivities().map(({ a, plans, last }) => ({ id: a.id, c: [`<b>${esc(a.name)}</b><div class="row__s">${a.id}</div>`, ACT_TYPE[a.type], plans ? plural(plans, 'plan') : 'Not assigned', `<span class="row__m">${last ? 'Last ' + fs(last) : 'Never run'}</span>`] })), x => '#/activities/' + x.id)}`);
     return { title, html: `<div class="hero" style="padding-bottom:18px"><div class="hero__b"><h2 class="hero__t">${title}</h2><div class="hero__s">${esc(siteLabel())} · ${fd(nowIs())}</div></div></div>${body}`, right: `<button class="icon-btn" data-do="exportCsv" data-arg="${k}" aria-label="Export">${ic('download', 21)}</button>` };
   },
 };
@@ -600,6 +620,8 @@ const GUIDE = [
   ['C', 'Damage, checks and repair', 'P-ANJ', '#/repairs', 'repairs'], ['D', 'Transfer and acknowledgement', 'P-RAVI', '#/transfers', 'transfers'],
   ['E', 'Schedule and run an audit', 'P-MEERA', '#/audits', 'audits'], ['F', 'Disposal and approval', 'P-SUR', '#/disposals', 'disposals'],
   ['G', 'Pending action to done', 'P-LAKS', '#/today', 'today'], ['H', 'Configure categories', 'P-NEHA', '#/setup/CAT-A', 'setup'],
+  ['I', 'Run and record a session', 'P-PRIYA', '#/sessions', 'calendar'], ['J', 'Approve a new activity', 'P-ANJ', '#/activities/ACT-0013', 'sparkle'],
+  ['K', 'Material request: reuse or buy', 'P-RAVI', '#/matreq', 'newitem'], ['L', 'Assign a recommended activity', 'P-RAVI', '#/species/SP-HGB', 'paw'],
 ];
 DO.guide = () => {
   closePop(true);
