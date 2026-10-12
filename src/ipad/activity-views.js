@@ -279,7 +279,7 @@ DO.mrDecline = id => {
 /* ============ sheets ============ */
 // multi-select page: toggles values in a list field; Back returns to the form
 function multiPage(o) {
-  return { title: o.title, body: f => `<div class="pick-list">${[...new Set(o.options.map(x => x.group || ''))].map(g => fg(g, o.options.filter(x => (x.group || '') === g).map(x => `<button class="cell choice ${f[o.key].includes(x.v) ? 'on' : ''}" data-do="mpick" data-arg="${o.key}|${esc(x.v)}">${x.tile || ''}<span class="choice__b"><span class="choice__t">${esc(x.t)}</span>${x.s ? `<span class="choice__s" style="display:block">${x.s}</span>` : ''}</span><span class="ok-mark">${ic('check', 20)}</span></button>`))).join('')}</div>` };
+  return { title: o.title, body: f => `<div class="pick-list">${[...new Set(o.options.map(x => x.group || ''))].map(g => fg(g, [Card(o.options.filter(x => (x.group || '') === g).map(x => PickRow({ title: x.t, sub: x.s, on: f[o.key].includes(x.v), check: true, do: 'mpick', arg: `${o.key}|${x.v}`, lead: x.tile })).join(''), 'ak-picks')])).join('')}</div>` };
 }
 DO.mpick = a => { const i = a.indexOf('|'), k = a.slice(0, i), v = a.slice(i + 1), l = SH.f[k]; SH.f[k] = l.includes(v) ? l.filter(x => x !== v) : [...l, v]; SH.dirty = true; refreshSheet(); };
 const cMultiOpts = (k, key, f, opts) => `<div class="cell cell--col"><span class="cell__k">${esc(k)}</span><div class="opts">${opts.map(o => `<button class="opt ${f[key].includes(o) ? 'on' : ''}" data-do="mpick" data-arg="${key}|${esc(o)}">${esc(o)}</button>`).join('')}</div></div>`;

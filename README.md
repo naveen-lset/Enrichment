@@ -23,7 +23,7 @@ Open **http://localhost:8834/**.
 - On an iPad, or with `?bare=1`, it fills the screen and follows the device orientation.
 
 ```sh
-npm test                   # 34 tests of the business rules (26 PRD, 8 activity)
+npm test                   # 55 tests of the business rules (26 PRD, 8 activity, 12 Enrichments, 9 lifecycle)
 npm run test:ui            # UI checks at 4 iPad sizes (needs npm start and Google Chrome)
 ```
 
@@ -54,9 +54,10 @@ npm run deploy             # builds dist/ and publishes to antz-enrichment.pages
 | **D · Transfer** | Section + receiver + reference → review → in transit → receiver acknowledges (damage on arrival goes to assessment) · exception by facility manager |
 | **E · Audit** | Template → schedule → generate occurrence (audit session + execution task) → verify / record findings → corrective-action tasks → resolve → close |
 | **F · Disposal** | Reason + evidence → validations → approve / reject (item stays active) → final disposition → record kept |
+| **Enrichments (Phase 1)** | Products by enrichment type (cards / list, search, filters) → detail → request · propose · move · transfer · change custodian → My requests (Draft → Pending approval → Approved / Rejected → Completed) → Approvals (supervisor or site manager) · Phase 2: store / return to use, report issue → repair steps, transfer Requested → Approved → In transit → Received, lifecycle timeline |
 | **G · Dashboard → action** | Overview count or My tasks row → the record or its action sheet → counts update |
 
-Roles: supervisor, facility manager, biologist, workshop / VIC, approver and admin. Each sees only the sections and actions it is allowed. Use **Demo guide** to sign in as the right person for each flow.
+Navigation: bottom tabs **Home · Enrichments · Requests**. Roles: **Biologist, Supervisor, Site manager**. Use **Demo guide** to sign in as the right person for each flow. (The earlier PRD screens stay in the code but are no longer in the navigation; see docs/WORKFLOWS.md §14.)
 
 ## How the interface works
 
@@ -75,12 +76,15 @@ Roles: supervisor, facility manager, biologist, workshop / VIC, approver and adm
 │   │   ├── model.js        business rules from the PRD (no UI) — statuses, permissions, workflows, tasks, notifications, reports
 │   │   ├── seed.js         base sample history, played through the rules (used by the tests)
 │   │   ├── seed-demo.js    70 sample records across 6 sections and 2 sites (app only)
-│   │   └── work.js         proposed: templates, schedules, occurrences, execution and corrective tasks
+│   │   ├── work.js         proposed: templates, schedules, occurrences, execution and corrective tasks
+│   │   └── products.js     Enrichments Phase 1: product types, requests, approvals, custodian change, notifications
 │   └── ipad/
 │       ├── ipad.css        design tokens, layout, components, motion
 │       ├── core.js         state, router, split view, sheets, popovers, toast + undo, search
 │       ├── views.js        screens
 │       ├── actions.js      workflow sheets (one rule call each)
+│       ├── enrichment-components.js  Enrichments components (product card / row, request row, progress, pickers)
+│       ├── enrichment-views.js       Enrichments screens and sheets
 │       ├── icons.js        line icons
 │       └── main.js         start-up, orientation, frame
 ├── kit/                    ANTZ design-kit assets (colour tokens are taken from kit/tokens.css)
@@ -100,6 +104,9 @@ Roles: supervisor, facility manager, biologist, workshop / VIC, approver and adm
 [docs/WORKFLOWS.md](docs/WORKFLOWS.md) holds the end-to-end workflow map, the screen inventory, the tablet layout spec, the status-transition and role-permission matrices, PRD traceability, the open business decisions, the integrations needed for production, and the QA checklist. Every item is tagged **PRD**, **Proposed**, **Integration** or **Decision**.
 
 ## Design
+
+Components follow `Components.md` (the Antz tablet kit), built in `src/ipad/antz-kit.js` / `antz-kit.css`; see docs/WORKFLOWS.md §15.
+
 
 Inter. Colours come only from the ANTZ tokens: deep teal for actions and selection, ANTZ green for success, and tones for status. Radius 12, spacing on a 4 px scale. Spring motion on sheets, panels, tabs and toasts, with reduced motion respected. No helper text in the interface.
 

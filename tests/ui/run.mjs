@@ -6,7 +6,7 @@ import { spawn } from 'node:child_process';
 import fs from 'node:fs';
 const here = new URL('.', import.meta.url).pathname;
 const CHROME = process.env.CHROME || '/Applications/Google Chrome.app/Contents/MacOS/Google Chrome';
-const SIZES = [[1194, 834, 'P-MEERA'], [834, 1194, 'P-MEERA'], [744, 1133, 'P-RAVI'], [1180, 820, 'P-NEHA']];
+const SIZES = [[1194, 834, 'P-MEERA'], [834, 1194, 'P-MEERA'], [744, 1133, 'P-RAVI'], [1180, 820, 'P-RAVI'], [1194, 834, 'P-ANJ'], [834, 1194, 'P-ANJ']];
 const checks = ['scroll-check.js', 'layout-check.js'].map(f => [f, fs.readFileSync(here + f, 'utf8')]);
 const port = 9400 + Math.floor(Math.random() * 400), prof = fs.mkdtempSync('/tmp/antz-ui-');
 const ch = spawn(CHROME, ['--headless=new', '--disable-gpu', `--remote-debugging-port=${port}`, `--user-data-dir=${prof}`, 'about:blank'], { stdio: 'ignore' });

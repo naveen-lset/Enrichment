@@ -60,30 +60,33 @@ DO.actRegister = () => {
 
 /* ---------- B · move / rotate ---------- */
 const REASONS = ['Rotation', 'Storage', 'Cleaning', 'Rest from use', 'Enclosure change'];
-DO.actMove = id => {
+// actMove('EF-x') — or 'EF-x|store' / 'EF-x|use' to offer only stores or only places of use (Enrichments: Store / Return to use)
+DO.actMove = arg => {
   closePop(true);
-  const it = itemOf(id), ok = usableForAnimals(it);
+  const [id, dest = ''] = String(arg).split('|'), it = itemOf(id), ok = usableForAnimals(it);
+  const fits = l => !dest || (dest === 'store') === (l.kind === 'store');
   sheet({
-    title: 'Move',
+    title: dest === 'store' ? 'Move to storage' : dest === 'use' ? 'Return to use' : 'Move',
     body: f => sumItem(it) + fg('Destination', [cNav('To', locName(f.to), 'to', true), cOpts('Reason', 'reason', f, REASONS, true), it.mode === 'batch' && cStep('Quantity', 'qty', f, 1, it.qty)]),
-    pickers: { to: () => pickerPage({ title: 'Destination', key: 'to', options: locOpts(l => l.section === it.section && l.id !== it.loc).map(o => Object.assign(o, { dis: locOf(o.v).kind === 'enclosure' && !ok })) }) },
+    pickers: { to: () => pickerPage({ title: 'Destination', key: 'to', options: locOpts(l => l.section === it.section && l.id !== it.loc && fits(l)).map(o => Object.assign(o, { dis: locOf(o.v).kind === 'enclosure' && !ok })) }) },
     done: {
       label: 'Next', confirm: 'Move', ok: f => f.to && f.reason,
       review: f => sumItem(it) + reviewOf([['From', esc(where(it))], ['To', esc(locName(f.to))], ['Reason', esc(f.reason)], it.mode === 'batch' && ['Quantity', `${f.qty} of ${it.qty}${f.qty < it.qty ? ` · ${it.qty - f.qty} stay` : ''}`], ['Status', locOf(f.to).kind === 'enclosure' ? STATUS.inuse : STATUS.storage]]),
       run: f => { move(id, UI.me, { to: f.to, reason: f.reason, qty: f.qty }); return `Moved to ${locName(f.to)}`; },
     },
-  }, { to: '', reason: '', qty: it.qty });
+  }, { to: '', reason: dest === 'store' ? 'Storage' : dest === 'use' ? 'Rotation' : '', qty: it.qty });
 };
 
 /* ---------- C · condition issue and repair ---------- */
 const ISSUES = ['Structural damage', 'Wear', 'Corrosion', 'Contamination', 'Missing part', 'Other'];
-DO.actFlag = id => {
+// actFlag('EF-x') — or 'EF-x|enr' from Enrichments, which shows the checks as the steps of the issue instead of by team
+DO.actFlag = arg => {
   closePop(true);
-  const it = itemOf(id), route = routingFor(it), reqs = catOf(it).req?.repair || [];
+  const [id, ctx] = String(arg).split('|'), it = itemOf(id), route = routingFor(it), reqs = catOf(it).req?.repair || [];
   sheet({
     title: 'Report issue',
     body: f => sumItem(it) + fg('Issue', [cOpts('Type', 'issue', f, ISSUES, true), cSeg('cond', f, COND_ISSUE), cArea('Description', 'notes', f, reqs.includes('notes'))])
-      + fg('Evidence', [cPhotos('photos', f, reqs.includes('photo'))]) + fg('Checks', [cInfo('Animal use', route.bio ? 'Biologist' : 'Not required'), cInfo('Repairability', route.tech ? 'Workshop / VIC' : 'Not required')]),
+      + fg('Evidence', [cPhotos('photos', f, reqs.includes('photo'))]) + (ctx === 'enr' ? '' : fg('Checks', [cInfo('Animal use', route.bio ? 'Biologist' : 'Not required'), cInfo('Repairability', route.tech ? 'Workshop / VIC' : 'Not required')])),
     done: { label: 'Submit', ok: f => f.issue && f.cond, run: f => { flagIssue(id, UI.me, f); return 'Issue reported'; } },
   }, { issue: '', cond: 'damaged', notes: '', photos: [] });
 };

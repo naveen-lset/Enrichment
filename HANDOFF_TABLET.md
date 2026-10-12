@@ -6,12 +6,12 @@ Last session: 12 Oct 2026. Repository: https://github.com/naveen-lset/Enrichment
 ```sh
 cd /Users/naveen/Enrichment/enrichment-tablet
 npm start            # python3 -m http.server 8834 → http://localhost:8834/
-npm test             # 34 rule tests: 26 PRD + 8 activity (Node 20+)
-npm run test:ui      # UI checks at 4 iPad sizes (server running, Google Chrome installed)
+npm test             # 55 rule tests: 26 PRD + 8 activity + 12 Enrichments + 9 lifecycle (Node 20+)
+npm run test:ui      # UI checks at 6 iPad sizes, ~10 min (server running, Google Chrome installed)
 npm run deploy       # build dist/ and publish to Cloudflare Pages (wrangler login saved on the owner's Mac)
 ```
-- Hard-refresh after CSS changes. `?reset=1` restores the sample data; **Reset** in the top bar does the same.
-- `?bare=1` fills the screen (automatic on a touch tablet); `?as=P-MEERA` signs in as a person; `?o=portrait`.
+- Hard-refresh after CSS changes. `?reset=1` restores the sample data (also *Viewing as › Reset demo data*).
+- Full screen by default; `?frame=1` shows the old tablet frame. `?as=P-RAVI` signs in as a person (only Biologist / Supervisor / Site manager are allowed).
 
 ## What exists
 - **App** (`index.html`, `src/ipad/`): iPad-style UI with sidebar, split view (first record opens automatically), repairs board (stacked in portrait), form sheets with picker pages and review pages, popovers, toast + undo, ⌘K search, swipe and long-press, blur behind overlays.
@@ -29,10 +29,24 @@ npm run deploy       # build dist/ and publish to Cloudflare Pages (wrangler log
 - **Flowchart (12 Oct)**: Helpdesk request → PRD item lifecycle → optional activities, with suggestions per step. Private artifact https://claude.ai/artifact/HEwbjg4CBPWikwYBwQeGAU (source not in the repo).
 - **Enrichment activities (12 Oct, Proposed)**: the Figma activity flows built in the same app and style. One sidebar entry *Enrichment* opening a module drawn like the ANTZ diet module (underlined tabs with counts, counted segment tabs and filter chips, request-style cards, one-card details with tinted-header tables): Sessions (day cards with material check, Record / Skip), Activities (catalogue, biologist approval, results), Species (like Diet by Species, with Recommended), Material requests (custodian: issue from store / send to request module / decline). New Keeper role (Priya Shetty, Imran Sheikh, Rosy Mathew). Rules `src/model/activity.js`, screens `src/ipad/activity-views.js`, tests `tests/activity.test.mjs` (8), docs `docs/WORKFLOWS.md` §11. Storage key bumped to `antz-enrichment-ipad-2`, so browsers reseed.
 
+- **Enrichments Phase 1 (12 Oct, from the Phase 1 brief)**: sidebar *Enrichments* → Products (5 type tabs from `ACT_TYPE`, cards / list, search, filters, detail slide-over) · My requests · Approvals. Requests: product request, new product, same-site movement, inter-site transfer; custodian change is direct. Approval of movement / transfer runs `move()` / `transfer()` as the approver and the request is Completed (transfer item still waits for acknowledgement). Rules `src/model/products.js`, components `src/ipad/enrichment-components.js`, screens `src/ipad/enrichment-views.js`, tests `tests/products.test.mjs`, docs `docs/WORKFLOWS.md` §12 (dependencies D-E1…D-E10). Storage key bumped to `antz-enrichment-ipad-3`. Small shell changes in `core.js`: the search band also serves full-width pages (`searchBand()`), sidebar entry, seeding.
+
+- **Enrichments Phase 2 (12 Oct)**: lifecycle controls in the product detail (Store / Return to use, Report issue, repair steps, transfer stages, lifecycle timeline), Approvals › To dispatch. Owner decisions: transfers = approval → dispatch → receipt (request Completed on receipt); workshop repairability check stays a waiting step. `tests/lifecycle.test.mjs`, docs §13 (D-P1…D-P6).
+
+- **Current state (end of 12 Oct)** — read this first:
+  - **Navigation**: bottom tabs Home · Enrichments · Requests (no sidebar). Roles: Biologist (Dr. Anjali Rao), Supervisors (Ravi, Lakshmi, Arun, Farhan), Site manager (Meera = AFM role).
+  - **Design**: `/Users/naveen/Enrichment/Components.md` (Antz procurement tablet kit, supplied by the owner) is the component source. Built as `src/ipad/antz-kit.js` (HTML-string components: Btn, Tag, Section, KV, RecordCard, Stepper, StatusFoot, DecisionButtons, AppBar, CountTabs, BottomNav, PickRow …) and `src/ipad/antz-kit.css` (prefix `ak-`). Shell in `core.js`: `header()` = AppBar, `searchBand()` = ListBar + SearchBox, `paintTabbar()` = BottomNav, `paintSlide()` = FullPanel with StatusFoot + `showBanner()`, `drawSheet()` = bottom / side / dialog Sheet with footer, form fields `cText/cArea/cNav/cOpts/cSeg/cStep` = Field / TextIn / PickField / Choice / Stepper2. Docs §15.
+  - **Screens** (`src/ipad/enrichment-views.js`): Products (CountTabs of the 5 types, record cards / list, filters side sheet, Fab for New request) → product FullPanel (`productPanel()`, actions `productActions()`); Requests (`VIEWS.enrreq` biologist / `VIEWS.enrappr` reviewers, record cards) → `requestPanel()` with Approve (banner) / Reject (reason dialog) / Dispatch / Edit / Withdraw / Revise; Home (`VIEWS.today`, tiles + To do from `enrTasks()` + Updates from `myNotifications()`).
+  - **Forms**: Next / Submit always tappable; empty required fields get a red outline and "Fill in the fields marked *" (`markMissing()` in core.js).
+  - **Click-through check**: every flow (27) was tapped through in headless Chrome, landscape and portrait, all passing (script kept outside the repo).
+  - Storage key `antz-enrichment-ipad-5`.
+- **Minimal navigation (12 Oct, owner)**: bottom tabs Home · Enrichments · Requests replace the sidebar; roles Biologist · Supervisor · Site manager only; Home = role-scoped To do + Updates; repairability check removed (`noRepairCheck()`). Other modules stay in code, not in navigation. Docs §14. Storage key `antz-enrichment-ipad-4`.
+
 ## User's rules
-No helper text in the UI · iPad concept, not a copy · Antz colour tokens only (no hex outside `kit/tokens.css`) · Inter (Antz text styles), radius 10 cards / 8 buttons, no gradients · show each fact once (no repeated text) · few icons (sidebar, toolbar, none in rows or menus) · overlays blur the background · prototype-only behaviour labelled in docs, not in the UI.
+Keep it minimal (3 tabs, 3 roles; ask before adding modules, roles or nav entries) · follow Components.md · no helper text in the UI · Antz colour tokens only (no hex outside `kit/tokens.css`) · show each fact once · one main action per footer · prototype-only behaviour labelled in docs, not in the UI · full screen, no iPad frame.
 
 ## Open questions for the owner
+- Enrichments decisions: docs/WORKFLOWS.md §12 (D-E1…D-E10), §13 (D-P2…D-P6), §14 (receipts, disposal and audit have no entry point in the 3-tab navigation).
 - The 14 business decisions in docs/WORKFLOWS.md §8.
 - The Task / Assessment / Audit links (`work.js`) need checking against the real ANTZ modules.
 - The repo and the site are public. Make them private if the kit or module details are internal.
@@ -40,7 +54,8 @@ No helper text in the UI · iPad concept, not a copy · Antz colour tokens only 
 
 ## Not done
 - Remove repeated text on the older PRD screens (user feedback 12 Oct): e.g. site in header and on Overview, item name in hero and in detail cards. The Enrichment screens already follow this.
-- **Deployed but not pushed**: the live site runs the 12 Oct work (deployed from the working copy). Commits since `aa2f276` are **local only**; another device cannot pull them yet. README screenshots show the 11 Oct style.
+- **Not deployed**: the live site runs the minimal-navigation version **before** the Components.md redesign (deployed 12 Oct ~21:45). Run `npm run deploy` after the owner reviews localhost.
+- **Not pushed**: `main` is ahead of `origin/main`; another device cannot pull it yet. README screenshots show the 11 Oct style.
 - Exceptions to the old UI rules, asked for by the user via the diet/medical references: counts on tabs and chips, small icons in session cards.
 - Enrichment open decisions: scope sign-off (not in PRD), who may create activities, keeper recording a colleague's session, "partly" = half a success, 30-day "unused" window. Helpdesk → Receipts hand-off is not wired (prototype starts at a dispatched ticket).
 - Not tested on a physical iPad. Check the Safari blur and the date picker on a device.

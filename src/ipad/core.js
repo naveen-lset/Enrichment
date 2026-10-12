@@ -3,7 +3,7 @@
 
 /* ============ state ============ */
 const UI = { me: 'P-RAVI', site: 'S-MAIN', o: 'landscape', sb: true, peek: false, q: {}, f: {}, tab: {}, labels: [], dsel: '' };
-const STORE = 'antz-enrichment-ipad-2';
+const STORE = 'antz-enrichment-ipad-5';
 const $ = (s, r = document) => r.querySelector(s);
 const $$ = (s, r = document) => [...r.querySelectorAll(s)];
 const VIEWS = {}, DO = {}, IN = {};
@@ -16,7 +16,7 @@ function load() {
   } catch (e) { /* ignore */ }
   return false;
 }
-function fresh() { boot(); workSeed(); activitySeed(); setNow(NOW_DEFAULT); }
+function fresh() { boot(); workSeed(); activitySeed(); productSeed(); setNow(NOW_DEFAULT); }
 const snapshot = () => ({ d: JSON.stringify(D), now: nowIs() });
 const restore = s => useData(JSON.parse(s.d), s.now);
 // each action moves the demo clock on a few minutes, so the history keeps its order and the status bar clock runs
@@ -56,7 +56,7 @@ const locName = id => (locOf(id) || {}).name || '';
 const secName = id => (sectionOf(id) || {}).name || '';
 const siteName = id => (siteOf(id) || {}).name || '';
 const catCode = it => (catOf(it) || {}).code || '';
-const ROLE_SHORT = { sup: 'Supervisor', afm: 'Facility manager', bio: 'Biologist', ws: 'Workshop / VIC', mgmt: 'Approver', admin: 'Admin', keeper: 'Keeper' };
+const ROLE_SHORT = { sup: 'Supervisor', afm: 'Site manager', bio: 'Biologist', ws: 'Workshop / VIC', mgmt: 'Approver', admin: 'Admin', keeper: 'Keeper' };
 
 /* ============ scope: the site picked in the sidebar ============ */
 const mySites = () => me().sites;
@@ -162,16 +162,16 @@ function render() {
   let V = VIEWS[r.v];
   if (!V) { V = VIEWS.today; r.v = 'today'; } else if (V.allow && !V.allow()) V = VIEWS.denied;
   UI.r = r;
-  paintSidebar(r);
+  paintTabbar(r);
   const main = $('#main');
   if (main.dataset.layout !== V.layout) {
     main.dataset.layout = V.layout;
     // ANTZ app shell: one white header, full-width filter bands, then the panes on the page background
-    main.innerHTML = `<header class="hdr" id="hdr"></header>` + (V.layout === 'split'
+    main.innerHTML = `<header class="hdr ak-bar" id="hdr"></header>` + (V.layout === 'split'
       ? `<div class="bands"><div id="ltop"></div><div id="ltabs"></div><div id="lsearch"></div></div>
          <div class="panes"><section class="pane pane--list"><div class="scroll" id="lscroll"><div class="pane__pad" id="lrows"></div></div></section>
          <section class="pane pane--detail"><div class="scroll" id="dscroll"><div class="pane__pad" id="dbody"></div></div></section></div>`
-      : `<div class="bands"><div id="ltop"></div><div id="ltabs"></div></div><div class="panes"><section class="pane pane--full"><div class="scroll" id="fscroll"><div class="pane__pad pane__pad--full" id="fbody"></div></div></section></div>`);
+      : `<div class="bands"><div id="ltop"></div><div id="ltabs"></div><div id="lsearch"></div></div><div class="panes"><section class="pane pane--full"><div class="scroll" id="fscroll"><div class="pane__pad pane__pad--full" id="fbody"></div></div><div id="fab"></div></section></div>`);
   }
   let right = '';
   if (V.layout === 'split') {
@@ -179,8 +179,7 @@ function render() {
     topBand(L.top);
     const tabs = L.tabs ? `<div class="band band--tabs">${L.tabs}</div>` : '';
     if ($('#ltabs')._html !== tabs) { $('#ltabs').innerHTML = tabs; $('#ltabs')._html = tabs; placeSegs($('#ltabs')); }
-    if ($('#lsearch')._key !== hk) { $('#lsearch')._key = hk; $('#lsearch').innerHTML = L.search ? `<div class="band band--search">${searchField(r.v, L.search)}${L.filter ? `<button class="sqbtn" data-do="${L.filter.do}" aria-label="Filters">${ic('setup', 20)}<span class="dot" ${L.filter.n ? '' : 'hidden'}>${L.filter.n}</span></button>` : ''}</div>` : ''; }
-    else if (L.filter) { const d = $('#lsearch .sqbtn .dot'); if (d) { d.hidden = !L.filter.n; d.textContent = L.filter.n; } }
+    searchBand(r, L, hk);
     paint($('#lrows'), L.rows, hk, 'enter-fade');
     if (!r.id && V.autoOpen !== false) { // split view opens the first record instead of an empty pane
       const f = $('#lrows .row[data-go^="#/' + r.v + '/"]');
@@ -197,24 +196,31 @@ function render() {
     const F = V.full(r);
     right = F.right || '';
     topBand(F.top);
+    searchBand(r, F, r.v + '|' + UI.site);
     const tabs = F.tabs ? `<div class="band band--tabs">${F.tabs}</div>` : '';
     if ($('#ltabs')._html !== tabs) { $('#ltabs').innerHTML = tabs; $('#ltabs')._html = tabs; placeSegs($('#ltabs')); }
     paint($('#fbody'), F.html, r.v + '|' + UI.site + '|' + (F.key || ''));
+    const fab = F.fab || ''; if ($('#fab')._html !== fab) { $('#fab').innerHTML = fab; $('#fab')._html = fab; }
   }
-  const hdr = header(V.hdr || V.label || '', right);
+  const hdr = header(V.hdr || V.label || '', right, V.sub ? V.sub() : '');
   if ($('#hdr')._html !== hdr) { $('#hdr').innerHTML = hdr; $('#hdr')._html = hdr; placeSegs($('#hdr')); }
   paintSlide(V, r);
   if (SH) refreshSheet();
 }
+// the search band: search field, filter button with its count, and optional tools (a view switch); rebuilt only when its key changes, so typing keeps focus
+function searchBand(r, L, hk) {
+  const el = $('#lsearch'), key = hk + '|' + (L.searchKey || '');
+  if (el._key !== key) { el._key = key; el.innerHTML = L.search ? `<div class="band band--search band--list">${L.listTitle ? `<div class="ak-listbar__t">${esc(L.listTitle)}</div>` : ''}${searchField(r.v, L.search)}${L.filter ? `<button class="sqbtn" data-do="${L.filter.do}" aria-label="Filters">${ic('setup', 20)}<span class="dot" ${L.filter.n ? '' : 'hidden'}>${L.filter.n}</span></button>` : ''}${L.tools || ''}</div>` : ''; }
+  else if (L.filter) { const d = $('#lsearch .sqbtn .dot'); if (d) { d.hidden = !L.filter.n; d.textContent = L.filter.n; } }
+}
 // a module's own tab bar (underlined, like the ANTZ diet module) above the filter bands
 function topBand(html) { const t = html ? `<div class="band band--mod">${html}</div>` : '', el = $('#ltop'); if (el && el._html !== t) { el.innerHTML = t; el._html = t; } }
+// header: Components.md AppBar — title, the site as the sub line (a menu when the person has several), then the right slot
 function header(title, right) {
-  const p = me(), n = notifications(UI.me).length, sites = mySites();
-  return `${sideHidden() ? sbToggle() : ''}<h1 class="hdr__t">${esc(title)}</h1><div class="hdr__sp"></div>${right}
-    <button class="asbtn" data-do="who">${ic('user', 18)}<span class="asbtn__l">Viewing as: </span><b>${esc(p.name)}</b><span class="asbtn__r"> · ${ROLE_SHORT[p.role]}</span>${ic('down', 16)}</button>
-    <button class="sitebtn" ${sites.length > 1 ? 'data-do="siteMenu"' : 'disabled'}>${ic('pin', 20)}<span>${esc(siteLabel())}</span>${sites.length > 1 ? ic('down', 16) : ''}</button>
-    <button class="icon-btn" data-do="bell" aria-label="Notifications">${ic('bell', 21)}${n ? `<span class="dot">${n}</span>` : ''}</button>
-    ${createItems().length ? `<button class="icon-btn" data-do="create" aria-label="New">${ic('plus', 23)}</button>` : ''}`;
+  const p = me(), n = myNotifications().length, sites = mySites();
+  return `<div class="ak-bar__b"><h1 class="ak-bar__t">${esc(title)}</h1><button class="ak-bar__site" ${sites.length > 1 ? 'data-do="siteMenu"' : 'disabled'}>${esc(siteLabel())}${sites.length > 1 ? ic('down', 14) : ''}</button></div>
+    <div class="ak-bar__r">${right}<button class="asbtn" data-do="who">${Avatar(p.id, 28)}<span class="asbtn__l">${esc(p.name)}</span>${ic('down', 16)}</button>
+    <button class="icon-btn" data-do="bell" aria-label="Notifications">${ic('bell', 22)}${n ? `<span class="dot">${n}</span>` : ''}</button></div>`;
 }
 DO.siteMenu = (a, el) => popover(el, menu([...mySites().map(s => ({ t: siteName(s), do: 'site', arg: s, on: UI.site === s })), { t: 'All sites', do: 'site', arg: 'all', on: UI.site === 'all' }]), { w: 220 });
 function bindScroll(sc) {
@@ -227,24 +233,35 @@ IN.q = (val, el) => { UI.q[el.dataset.v] = val; el.parentNode.querySelector('.se
 DO.qclear = v => { UI.q[v] = ''; const i = $('#lsearch input'); if (i) { i.value = ''; i.focus(); } $('#lsearch .search__x').hidden = true; render(); };
 const match = (q, ...xs) => !q || xs.join(' ').toLowerCase().includes(q.trim().toLowerCase());
 
-/* slide-over (repairs board) */
+/* full-screen panel: a record opened from a list (Components.md FullPanel) — want: {close, title, sub, right, html, foot, key} */
+let BANNER = null;   // {key, html, until}: ResultBanner shown in place of the footer after a decision
 function paintSlide(V, r) {
   const host = $('#slide'), want = V.slide ? V.slide(r) : null, wrap = host.firstChild;
   if (!want) { if (wrap && !wrap.classList.contains('out')) { wrap.classList.add('out'); setTimeout(() => { if (host.firstChild?.classList.contains('out')) host.innerHTML = ''; }, 240); } return; }
-  if (!wrap || wrap.classList.contains('out')) {
-    host.innerHTML = `<div class="slide-wrap"><div class="slide-scrim" data-go="${want.close}"></div><div class="slide"><section class="col col--detail"><nav class="bar" id="sbar"></nav><div class="scroll"><div class="pad" id="sbody"></div></div></section></div></div>`;
-    bindScroll($('.scroll', host));
-  }
-  $('#sbar').innerHTML = bar({ left: `<button class="icon-btn" data-go="${want.close}" aria-label="Close">${ic('x', 22)}</button>`, title: want.title, right: want.right || '' });
+  if (!wrap || wrap.classList.contains('out')) host.innerHTML = `<div class="fp"><div id="sbar"></div><div class="fp__body scroll"><div class="fp__in" id="sbody"></div></div><div class="fp__foot" id="sfoot"></div></div>`;
+  const barH = AppBar({ title: want.title, sub: want.sub, back: want.close, right: want.right || '' });
+  if ($('#sbar')._html !== barH) { $('#sbar').innerHTML = barH; $('#sbar')._html = barH; }
   paint($('#sbody'), want.html, want.key);
+  const foot = BANNER && BANNER.key === want.key && Date.now() < BANNER.until ? BANNER.html : want.foot || '';
+  if ($('#sfoot')._html !== foot) { $('#sfoot').innerHTML = foot; $('#sfoot')._html = foot; }
 }
+function showBanner(key, kind, text) { BANNER = { key, html: ResultBanner(kind, text), until: Date.now() + 1700 }; render(); setTimeout(() => { if (BANNER && Date.now() >= BANNER.until) { BANNER = null; render(); } }, 1750); }
 
-/* ============ sidebar ============ */
+/* ============ bottom tab bar: Home · Enrichments · Requests (the only navigation) ============ */
+// Requests opens the biologist's own requests, or the approvals of a supervisor or site manager
+const TABS = () => [['today', 'Home', 'today', ['today']], ['enrichments', 'Enrichments', 'layers', ['enrichments']], [canRequest() ? 'enrreq' : 'enrappr', 'Requests', 'newitem', ['enrreq', 'enrappr']]];
+function paintTabbar(r) {
+  const n = enrTasks().length, cur = (TABS().find(t => t[3].includes(r.v)) || [])[0];
+  const html = BottomNav(TABS().map(([k, t, i]) => ({ key: k, label: t, icon: i, go: '#/' + k, badge: k === 'today' ? n : 0 })), cur);
+  const el = $('#tabbar');
+  if (el && el._html !== html) { el.innerHTML = html; el._html = html; el.style.setProperty('--n', 3); }
+}
+/* ============ sidebar (no longer shown) ============ */
 function setPeek(on) { UI.peek = on; $('.app').classList.toggle('sb-peek', on); }
 DO.sidebar = () => { if (UI.o === 'portrait') setPeek(!UI.peek); else { UI.sb = !UI.sb; $('.app').classList.toggle('sb-off', !UI.sb); save(); setTimeout(render, 10); } };
 DO.peekClose = () => setPeek(false);
 function paintSidebar(r) {
-  const groups = [[null, ['today', 'overview', 'sessions']], ['Items', ['register', 'receipts', 'labels']], ['Workflows', ['repairs', 'transfers', 'audits', 'disposals']], ['Insights', ['reports']], ['Admin', ['setup']]];
+  const groups = [[null, ['today', 'overview', 'enrichments', 'sessions']], ['Items', ['register', 'receipts', 'labels']], ['Workflows', ['repairs', 'transfers', 'audits', 'disposals']], ['Insights', ['reports']], ['Admin', ['setup']]];
   const nav = groups.map(([g, keys]) => {
     const items = keys.filter(k => VIEWS[k] && (!VIEWS[k].allow || VIEWS[k].allow())).map(k => {
       const V = VIEWS[k], c = V.count ? V.count() : null, hot = c && typeof c === 'object';
@@ -260,14 +277,20 @@ function paintSidebar(r) {
   if (sb._html !== html) { sb.innerHTML = html; sb._html = html; placeSegs(sb); }
 }
 DO.site = s => { UI.site = s; closePop(); save(); render(); };
-DO.who = (a, el) => {
-  const order = ['keeper', 'sup', 'afm', 'bio', 'ws', 'mgmt', 'admin'];
-  const ppl = D.people.slice().sort((x, y) => order.indexOf(x.role) - order.indexOf(y.role));
+DO.whoOld = (a, el) => {
+  const order = ['bio', 'sup', 'afm'];   // the three roles of the product
+  const ppl = D.people.filter(p => order.includes(p.role)).sort((x, y) => order.indexOf(x.role) - order.indexOf(y.role));
   popover(el, `<div class="pop__h">Sign in as</div>${ppl.map(p => `<button class="mi ${p.id === UI.me ? 'on' : ''}" data-do="signIn" data-arg="${p.id}">${av(p.id, 32)}<span><span>${esc(p.name)}</span><span class="mi__s">${ROLE_SHORT[p.role]}${p.sections.length ? ' · ' + p.sections.map(secName).join(', ') : ''}</span></span>${p.id === UI.me ? `<span class="mi__e">${ic('check', 18)}</span>` : ''}</button>`).join('')}
     <div class="mi-sep"></div><button class="mi" data-do="guide">Demo guide</button><button class="mi danger" data-do="reset">Reset demo data</button>`, { w: 320 });
 };
-DO.signIn = id => { UI.me = id; UI.site = person(id).sites[0]; closePop(); save(); go('#/today'); toast(`Signed in as ${nm(id)}`, { icon: 'user' }); };
-DO.reset = () => { closePop(); try { localStorage.removeItem(STORE); } catch (e) { /* ignore */ } fresh(); save(); go('#/today'); toast('Demo data reset', { icon: 'reset' }); };
+DO.who = () => {
+  const order = ['bio', 'sup', 'afm'];
+  const ppl = D.people.filter(p => order.includes(p.role)).sort((x, y) => order.indexOf(x.role) - order.indexOf(y.role));
+  sheet({ title: 'Viewing as', alt: [{ label: 'Demo guide', do: 'guide' }, { label: 'Reset demo data', do: 'reset', kind: 'danger' }],
+    body: () => Card(ppl.map(p => PickRow({ title: p.name, sub: ROLE_SHORT[p.role] + (p.sections.length ? ' · ' + p.sections.map(secName).join(', ') : ''), on: p.id === UI.me, do: 'signIn', arg: p.id, lead: Avatar(p.id, 36) })).join(''), 'ak-picks') });
+};
+DO.signIn = id => { UI.me = id; UI.site = person(id).sites[0]; closePop(); if (SH) closeSheet(); save(); go('#/today'); toast(`Signed in as ${nm(id)}`, { icon: 'user' }); };
+DO.reset = () => { closePop(); if (SH) closeSheet(); try { localStorage.removeItem(STORE); } catch (e) { /* ignore */ } fresh(); save(); go('#/today'); toast('Demo data reset', { icon: 'reset' }); };
 
 /* ============ popovers + menus ============ */
 function screenBox() { const s = $('#screen'), r = s.getBoundingClientRect(); return { r, k: r.width / s.offsetWidth }; }
@@ -327,18 +350,25 @@ function act(fn, msg, o = {}) {
 /* ============ sheets: a form sheet with a page stack ============ */
 // sheet(page, form) — page: {title, body(f) → html, done: {label, run(f) → toast text, ok(f) → bool}, pickers: {key: f => pickerPage}}
 let SH = null;
-function sheet(page, form = {}, o = {}) { closePop(true); SH = { stack: [page], f: form, err: '', wide: !!o.wide }; drawSheet('open'); }
+// o: {wide, side (filters, from the right), dialog (a short reason dialog)}
+function sheet(page, form = {}, o = {}) { closePop(true); SH = { stack: [page], f: form, err: '', wide: !!o.wide, side: !!o.side, dialog: !!o.dialog }; drawSheet('open'); }
 const topPage = () => SH.stack[SH.stack.length - 1];
 function drawSheet(mode) {
   const host = $('#sheet');
   if (mode === 'open' || !$('.sheet', host)) {
-    host.innerHTML = `<div class="layer"><div class="layer__scrim" data-do="sheetCancel"></div><div class="sheet ${SH.wide ? 'sheet--wide' : ''}"><div class="sheet__bar"></div><div class="sheet__pages"></div></div></div>`;
+    host.innerHTML = `<div class="layer ${SH.side ? 'layer--side' : SH.dialog ? 'layer--dialog' : 'layer--bottom'}"><div class="layer__scrim" data-do="sheetCancel"></div><div class="sheet ak-sheet ${SH.wide ? 'sheet--wide' : ''}">${SH.side || SH.dialog ? '' : '<span class="ak-sheet__grab"></span>'}<div class="sheet__bar"></div><div class="sheet__pages"></div><div class="ak-sheet__foot"></div></div></div>`;
   }
   const p = topPage(), sh = $('.sheet', host), pages = $('.sheet__pages', host);
   const ok = !p.done || !p.done.ok || p.done.ok(SH.f), dl = p.done && (typeof p.done.label === 'function' ? p.done.label(SH.f) : p.done.label);
-  $('.sheet__bar', host).innerHTML = `${p.left && SH.stack.length === 1 ? p.left : SH.stack.length > 1 ? `<button class="text-btn" data-do="sheetBack">${ic('left', 22)}Back</button>` : `<button class="text-btn" data-do="sheetCancel">Cancel</button>`}
-    <div class="sheet__t">${esc(p.title)}</div>${p.done ? `<button class="text-btn strong" data-do="sheetDone" id="sheetDone" ${ok ? '' : 'disabled'}>${esc(dl || 'Done')}</button>` : '<span style="width:70px"></span>'}`;
-  const body = (SH.err ? `<div class="sheet__err">${ic('alert', 18)}<span>${esc(SH.err)}</span></div>` : '') + p.body(SH.f);
+  const back = SH.stack.length > 1;
+  $('.sheet__bar', host).innerHTML = `${back ? `<button class="ak-bar__back" data-do="sheetBack" aria-label="Back">${ic('left', 24)}</button>` : ''}<div class="sheet__t">${esc(p.title)}</div><button class="ak-sheet__x" data-do="sheetCancel" aria-label="Close">${ic('x', 22)}</button>`;
+  // footer: the page's extra actions on the left (Reset, Save as draft), then Back and the one main action
+  const alts = (back ? [] : (p.alt || [])).concat(p.left && !back ? [{ label: 'Reset', do: p.left }] : []);
+  const foot = p.done || alts.length ? `${alts.map(a => Btn(a.label, { kind: a.kind || 'ghost', do: a.do, arg: a.arg })).join('')}<span class="ak-sheet__sp"></span>${back && p.done ? Btn('Back', { do: 'sheetBack' }) : ''}${p.done ? `<button class="ak-btn ak-btn--${p.done.kind || 'pri'} ${ok ? '' : 'is-incomplete'}" data-do="sheetDone" id="sheetDone"><span>${esc(dl || 'Done')}</span></button>` : ''}` : '';
+  $('.ak-sheet__foot', host).innerHTML = foot; $('.ak-sheet__foot', host).hidden = !foot;
+  // a form with a review page shows its two steps (Components.md stepped form)
+  const steps = p.done && p.done.review ? Stepper([{ label: 'Details', state: 'now' }, { label: 'Review', state: 'todo' }], true) : p.reviewed ? Stepper([{ label: 'Details', state: 'done' }, { label: 'Review', state: 'now' }], true) : '';
+  const body = (steps ? `<div class="ak-sheet__steps">${steps}</div>` : '') + (SH.err ? Note({ tone: 'bad', icon: 'alert', title: SH.err }) : '') + p.body(SH.f);
   if (mode === 'refresh') { const pg = $('.sheet__page', pages); if (pg) { const st = pg.scrollTop; pg.innerHTML = body; pg.scrollTop = st; placeSegs(pg); return; } }
   pages.innerHTML = `<div class="sheet__page ${mode === 'push' ? 'push-in' : mode === 'pop' ? 'pop-in' : ''}">${body}</div>`;
   const pg = $('.sheet__page', pages);
@@ -348,24 +378,35 @@ function drawSheet(mode) {
   const auto = $('[data-autofocus]', pg); if (auto && mode !== 'refresh') setTimeout(() => auto.focus(), 320);
 }
 function refreshSheet() { if (SH) drawSheet('refresh'); }
-function syncDone() { const b = $('#sheetDone'); if (b && topPage().done?.ok) b.disabled = !topPage().done.ok(SH.f); }
+function syncDone() { const b = $('#sheetDone'); if (b && topPage().done?.ok) { const ok = topPage().done.ok(SH.f); b.classList.toggle('is-incomplete', !ok); if (ok && SH.err === MISSING) { SH.err = ''; $$('#sheet .ak-field--err').forEach(x => x.classList.remove('ak-field--err')); const n = $('#sheet .ak-note--bad'); if (n) n.remove(); } } }
+const MISSING = 'Fill in the fields marked *';
+// the required fields that are still empty: an input or text area with no value, or a picker still showing "Choose", or an option row with nothing chosen
+function markMissing() {
+  $$('#sheet .ak-field').forEach(fl => {
+    if (!fl.querySelector('.ak-field__l i')) return;
+    const inp = fl.querySelector('input, textarea'), pick = fl.querySelector('.ak-pickf .ph'), opts = fl.querySelector('.ak-choice');
+    const empty = (inp && !inp.value.trim()) || !!pick || (opts && !opts.querySelector('button.on'));
+    fl.classList.toggle('ak-field--err', !!empty);
+  });
+}
 function closeSheet() {
   const l = $('#sheet .layer'); SH = null; if (!l) return;
   l.classList.add('out'); setTimeout(() => { if ($('#sheet .layer.out')) $('#sheet').innerHTML = ''; }, 230);
 }
 DO.sheetCancel = (a, el) => {
-  if (SH && SH.dirty && el && el.classList.contains('text-btn')) return popover(el, menu([{ icon: 'disposals', t: 'Discard changes', do: 'sheetDiscard', danger: true }, { icon: 'left', t: 'Keep editing', do: 'popClose' }]), { align: 'left', w: 240 });
+  if (SH && SH.dirty && el && el.classList.contains('ak-sheet__x')) return popover(el, menu([{ icon: 'disposals', t: 'Discard changes', do: 'sheetDiscard', danger: true }, { icon: 'left', t: 'Keep editing', do: 'popClose' }]), { align: 'left', w: 240 });
   closeSheet();
 };
 DO.sheetDiscard = () => { closePop(true); closeSheet(); };
 DO.sheetBack = () => { SH.stack.pop(); SH.err = ''; drawSheet('pop'); };
 DO.sheetDone = (a, el) => {
   const p = topPage(), snap = snapshot();
-  if (el) el.disabled = true;
+  if (p.done.ok && !p.done.ok(SH.f)) { SH.err = MISSING; drawSheet('refresh'); markMissing(); const sh = $('#sheet .sheet'); sh.classList.remove('shake'); void sh.offsetWidth; sh.classList.add('shake'); return; }
+  if (el) el.disabled = true;   // one tap only: the button returns with the next page or with the error
   if (p.done.review && !p.reviewed) {
     try { trial(() => p.done.run(SH.f), false); } catch (e) { SH.err = e.message; drawSheet('refresh'); const sh = $('#sheet .sheet'); sh.classList.remove('shake'); void sh.offsetWidth; sh.classList.add('shake'); return; }
     SH.err = '';
-    return sheetPush({ title: 'Review', reviewed: true, body: f => `${p.done.review(f)}`, done: { label: p.done.confirm || 'Confirm', run: p.done.run } });
+    return sheetPush({ title: p.title, reviewed: true, body: f => `${p.done.review(f)}`, done: { label: p.done.confirm || 'Confirm', run: p.done.run, kind: p.done.kind } });
   }
   try {
     const res = trial(() => p.done.run(SH.f)), msg = res && typeof res === 'object' ? res.msg : res;
@@ -388,32 +429,34 @@ DO.rmPhoto = a => { const [k, i] = a.split('|'); SH.f[k].splice(+i, 1); refreshS
 DO.pick = v => { SH.dirty = true; const p = topPage(); SH.f[p.pickKey] = v; if (p.after) p.after(SH.f, v); SH.stack.pop(); SH.err = ''; drawSheet('pop'); };
 IN.pq = v => { topPage().q = v; const list = $('#sheet .pick-list'); if (list) list.innerHTML = pickRows(topPage()); };
 
-// cells
+// form fields (Components.md): a label above each input; inputs 48 px; Choice for options; PickField opens a picker page
 const req = r => r ? '<i>*</i>' : '';
-const fg = (t, cells) => `<div class="fg">${t ? `<div class="fg__t">${esc(t)}</div>` : ''}<div class="fg__c">${cells.filter(Boolean).join('')}</div></div>`;
-const cInfo = (k, v) => `<div class="cell"><span class="cell__k">${esc(k)}</span><span class="cell__v set">${v}</span></div>`;
-const cNav = (k, v, key, r) => `<button class="cell" data-do="picker" data-arg="${key}"><span class="cell__k">${esc(k)}${req(r)}</span><span class="cell__v ${v ? 'set' : ''}">${v ? esc(v) : 'Choose'}</span>${ic('right', 18)}</button>`;
-const cText = (k, key, f, r, type = 'text') => `<label class="cell"><span class="cell__k">${esc(k)}${req(r)}</span><input type="${type}" data-in="f" data-k="${key}" value="${esc(f[key] ?? '')}"></label>`;
-const cArea = (k, key, f, r, auto) => `<label class="cell cell--col"><span class="cell__k">${esc(k)}${req(r)}</span><textarea data-in="f" data-k="${key}" rows="3" ${auto ? 'data-autofocus' : ''}>${esc(f[key] || '')}</textarea></label>`;
-const cStep = (k, key, f, lo, hi) => `<div class="cell"><span class="cell__k">${esc(k)}</span><span class="cell__v"></span><span class="stepper"><button data-do="step" data-arg="${key}|-1|${lo}|${hi}">${ic('minus', 18)}</button><b>${f[key]}</b><button data-do="step" data-arg="${key}|1|${lo}|${hi}">${ic('plus', 18)}</button></span></div>`;
-const cToggle = (k, key, f) => `<button class="cell" data-do="tog" data-arg="${key}"><span class="cell__k">${esc(k)}</span><span class="cell__v"></span><span class="toggle ${f[key] ? 'on' : ''}"></span></button>`;
-const cOpts = (k, key, f, opts, r) => `<div class="cell cell--col">${k ? `<span class="cell__k">${esc(k)}${req(r)}</span>` : ''}<div class="opts">${opts.map(o => { const [v, t] = Array.isArray(o) ? o : [o, o]; return `<button class="opt ${f[key] === v ? 'on' : ''}" data-do="opt" data-arg="${key}|${esc(v)}">${esc(t)}</button>`; }).join('')}</div></div>`;
-const cSeg = (key, f, opts) => `<div class="cell">${seg('f-' + key, opts.map(([v, t]) => ({ v: key + '|' + v, t })), key + '|' + f[key], 'opt', 'seg--block seg--lg')}</div>`;
-const cDate = (k, key, f, r) => `<label class="cell"><span class="cell__k">${esc(k)}${req(r)}</span><input type="date" data-in="f" data-k="${key}" value="${esc(f[key] || '')}"></label>`;
-const cChoices = (key, f, opts) => opts.map(o => `<button class="cell choice ${f[key] === o.v ? 'on' : ''} ${o.dis ? 'dis' : ''}" data-do="opt" data-arg="${key}|${esc(o.v)}">${o.tile || ''}<span class="choice__b"><span class="choice__t">${esc(o.t)}</span>${o.s ? `<span class="choice__s" style="display:block">${esc(o.s)}</span>` : ''}</span><span class="ok-mark">${ic('check', 20)}</span></button>`).join('');
-const cPhotos = (key, f, r) => `<div class="cell cell--col"><span class="cell__k">Photos${req(r)}</span><div class="photos" style="padding:0">${(f[key] || []).map((p, i) => `<button class="photo" data-do="rmPhoto" data-arg="${key}|${i}"><div class="photo__img">${ic('image', 24)}<span class="photo__x">${ic('x', 12)}</span></div><figcaption>${esc(p.caption)}</figcaption></button>`).join('')}<button class="photo" data-do="addPhoto" data-arg="${key}"><div class="photo__img photo__img--add">${ic('camera', 22)}</div><figcaption>Add photo</figcaption></button></div></div>`;
-const sumItem = it => `<div class="sheet__sum"><div class="row__b"><div class="row__t">${esc(it.name)}</div><div class="row__s">${esc(it.id)} · ${esc(where(it))}</div></div>${stPill(it)}</div>`;
+const fg = (t, cells) => `<div class="ak-fg">${t ? `<div class="ak-fg__t">${esc(t)}</div>` : ''}<div class="ak-fg__c">${cells.filter(Boolean).join('')}</div></div>`;
+const fl = (k, r) => k ? `<span class="ak-field__l">${esc(k)}${req(r)}</span>` : '';
+const cInfo = (k, v) => `<div class="ak-field ak-field--info"><span class="ak-field__l">${esc(k)}</span><span class="ak-field__v">${v}</span></div>`;
+const cNav = (k, v, key, r) => `<div class="ak-field">${fl(k, r)}<button class="ak-pickf" data-do="picker" data-arg="${key}"><span class="${v ? '' : 'ph'}">${v ? esc(v) : 'Choose'}</span>${ic('down', 18)}</button></div>`;
+const cText = (k, key, f, r, type = 'text') => `<label class="ak-field">${fl(k, r)}<input class="ak-in" type="${type}" data-in="f" data-k="${key}" value="${esc(f[key] ?? '')}"></label>`;
+const cArea = (k, key, f, r, auto) => `<label class="ak-field">${fl(k, r)}<textarea class="ak-in ak-in--area" data-in="f" data-k="${key}" rows="3" ${auto ? 'data-autofocus' : ''}>${esc(f[key] || '')}</textarea></label>`;
+const cStep = (k, key, f, lo, hi) => `<div class="ak-field">${fl(k)}<span class="ak-step2"><button data-do="step" data-arg="${key}|-1|${lo}|${hi}" aria-label="Less">${ic('minus', 18)}</button><b>${f[key]}</b><button data-do="step" data-arg="${key}|1|${lo}|${hi}" aria-label="More">${ic('plus', 18)}</button></span></div>`;
+const cToggle = (k, key, f) => `<button class="ak-field ak-field--toggle" data-do="tog" data-arg="${key}"><span class="ak-field__l">${esc(k)}</span><span class="toggle ${f[key] ? 'on' : ''}"></span></button>`;
+const cOpts = (k, key, f, opts, r) => `<div class="ak-field">${fl(k, r)}<div class="ak-choice ak-choice--wrap">${opts.map(o => { const [v, t] = Array.isArray(o) ? o : [o, o]; return `<button class="${f[key] === v ? 'on' : ''}" data-do="opt" data-arg="${key}|${esc(v)}" aria-pressed="${f[key] === v}">${esc(t)}</button>`; }).join('')}</div></div>`;
+const cSeg = (key, f, opts) => `<div class="ak-field"><div class="ak-choice" style="--n:${opts.length}">${opts.map(([v, t]) => `<button class="${f[key] === v ? 'on' : ''}" data-do="opt" data-arg="${key}|${esc(v)}" aria-pressed="${f[key] === v}">${esc(t)}</button>`).join('')}</div></div>`;
+const cDate = (k, key, f, r) => `<label class="ak-field">${fl(k, r)}<input class="ak-in" type="date" data-in="f" data-k="${key}" value="${esc(f[key] || '')}"></label>`;
+const cChoices = (key, f, opts) => Card(opts.map(o => PickRow({ title: o.t, sub: o.s, on: f[key] === o.v, dis: o.dis, do: 'opt', arg: `${key}|${o.v}` })).join(''), 'ak-picks');
+const cPhotos = (key, f, r) => `<div class="ak-field">${fl('Photos', r)}<div class="photos" style="padding:0">${(f[key] || []).map((p, i) => `<button class="photo" data-do="rmPhoto" data-arg="${key}|${i}"><div class="photo__img">${ic('image', 24)}<span class="photo__x">${ic('x', 12)}</span></div><figcaption>${esc(p.caption)}</figcaption></button>`).join('')}<button class="photo" data-do="addPhoto" data-arg="${key}"><div class="photo__img photo__img--add">${ic('camera', 22)}</div><figcaption>Add photo</figcaption></button></div></div>`;
+// the record a sheet acts on: a header card (Components.md detail header)
+const sumItem = it => `<div class="ak-sum">${IconTile(glyphOf(it.name), { size: 40 })}<div class="ak-sum__b"><div class="ak-sum__t">${esc(it.name)}</div><div class="ak-sum__s">${esc(it.id)} · ${esc(where(it))}</div></div></div>`;
 
 // pickerPage({title, key, options: [{v, t, s, tile, group, dis}], search, after})
 function pickerPage(o) {
   return { title: o.title, pickKey: o.key, after: o.after, q: '', opts: o.options,
-    body: f => `${o.search ? `<label class="search">${ic('search', 18)}<input type="search" placeholder="Search" data-in="pq" autocomplete="off"></label>` : ''}<div class="pick-list">${pickRows({ opts: o.options, q: '', pickKey: o.key }, f)}</div>` };
+    body: f => `${o.search ? `<label class="search ak-search">${ic('search', 18)}<input type="search" placeholder="Search" data-in="pq" autocomplete="off"></label>` : ''}<div class="pick-list">${pickRows({ opts: o.options, q: '', pickKey: o.key }, f)}</div>` };
 }
 function pickRows(p, f = SH.f) {
   const list = p.opts.filter(o => match(p.q, o.t, o.s || ''));
   if (!list.length) return empty('search', 'No matches', '', true);
   const groups = [...new Set(list.map(o => o.group || ''))];
-  return groups.map(g => fg(g, list.filter(o => (o.group || '') === g).map(o => `<button class="cell choice ${f[p.pickKey] === o.v ? 'on' : ''} ${o.dis ? 'dis' : ''}" data-do="pick" data-arg="${esc(o.v)}">${o.tile || ''}<span class="choice__b"><span class="choice__t">${esc(o.t)}</span>${o.s ? `<span class="choice__s" style="display:block">${esc(o.s)}</span>` : ''}</span><span class="ok-mark">${ic('check', 20)}</span></button>`))).join('');
+  return groups.map(g => fg(g, [Card(list.filter(o => (o.group || '') === g).map(o => PickRow({ title: o.t, sub: o.s ? esc(o.s) : '', on: f[p.pickKey] === o.v, dis: o.dis, do: 'pick', arg: o.v, lead: o.tile })).join(''), 'ak-picks')])).join('');
 }
 // common pickers
 const locOpts = filter => D.locations.filter(filter).map(l => ({ v: l.id, t: l.name, s: `${secName(l.section)} · ${siteName(l.site)}`, group: l.kind === 'enclosure' ? 'Enclosures' : 'Stores' }));

@@ -281,3 +281,153 @@ New role **Keeper** (`ROLE.keeper`): acts in own sections like a supervisor; can
 Prototype limits: no live timer (duration is picked); voice notes, video and the idea gallery from Figma are not built; animals and species are sample data and must come from the ANTZ animal module (**Integration**). The Figma screens are a phone app; this prototype draws them for the iPad.
 
 Open decisions: who may create activities (all staff, or supervisors and biologists only); whether a keeper can record a colleague's session; whether "partly" counts as half a success; the 30-day window for *unused*.
+
+## 12 · Enrichments, Phase 1 (rules `src/model/products.js` · components `src/ipad/enrichment-components.js` · screens `src/ipad/enrichment-views.js`)
+
+Built from the *ANTZ Enrichments — Phase 1 Implementation Brief*. Sidebar › **Enrichments**, scoped by the site menu in the header. One module tab bar: **Products · My requests · Approvals** (each shown only to the roles that can use it).
+
+**Data sources (no second inventory).** A *product* is a record of the item register (`D.items`, model.js): status, custodian, location, condition and history come from there. The **five enrichment types** are the existing activity types `ACT_TYPE` (Social, Cognitive, Environmental, Food-based, Sensory, activity.js). Associations: the enclosure a product is in, the animals living there and their species (activity.js sample animals). Activities and sessions: the activities that list the product as a material and the sessions that used it.
+
+| Screen | What it shows | Who |
+|---|---|---|
+| Products | Five type tabs (+ All), search (name, ID, species, animal, custodian, type), filter sheet (status, custodian, species, animal, enclosure) with removable tokens and Clear, cards by default, list layout switch (remembered per browser). | everyone |
+| Product detail (slide-over) | Image, name, type, status · actions · location, custodian (Change), tracking, condition · associations · enrichment activities (opens the activity) · recent sessions · requests · history (last 6, link to the full item history). | everyone |
+| My requests | Own requests by status: All, Draft, Pending, Approved, Rejected, Completed. Detail: progress (every logged step once, then what it waits for), request fields, associations, photos. Edit / Withdraw (pending), Submit / Edit / Delete (draft), Revise (rejected). | biologist |
+| Approvals | Requests routed to the person: Pending approval / Decided, request-type chips, search (ID, product, biologist, site). Approve / Reject. | supervisor, site manager (AFM), admin |
+
+### Requests
+
+| Type | Form | On approval |
+|---|---|---|
+| Product request | product (eligible products of the user's sites), quantity (group records), reason*, notes, custodian (default: requester), optional species / animals / enclosure | **Approved**. Fulfilment rule not defined → stays Approved (D-E1). |
+| New product | name*, enrichment type*, description*, details, justification*, site (when the user has several and no enclosure is picked), custodian, optional associations, supporting photos | **Approved**. No product is created in the listing (D-E2). A name already in the listing is refused. |
+| Movement (same site) | destination* (same section, not the current location; enclosures disabled when the item is not cleared for animal use), quantity (group), reason*, notes, associations | `move()` runs as the approver → item moved (a group splits) → request **Completed**. |
+| Transfer (inter-site) | destination site* (another site), section*, location, receiving custodian* (custodians of that section), material-transfer reference (required when the category requires it), reason*, notes | **Approved** only. Phase 2: dispatch, then receipt completes it (§13). |
+| Custodian change | new custodian* (biologist, supervisor or site manager of the product's site), note | No approval. Item history *Custodian changed*; notification to the new and the previous custodian. |
+
+Every request is checked by the model when it is submitted: movement and transfer are tried on a copy of the data with the PRD rules of `move()` / `transfer()`, so a request that the approver could not carry out is refused at once with the rule's message.
+
+### Status transitions (agreed model, no extra status)
+
+| From | Event | To | Who |
+|---|---|---|---|
+| — | Save as draft | Draft | requester |
+| — | Submit | Pending approval | requester |
+| Draft | Submit (full check) | Pending approval | requester |
+| Draft | Delete | (removed) | requester |
+| Pending approval | Edit | Pending approval | requester |
+| Pending approval | Withdraw | Draft | requester |
+| Pending approval | Approve (product request, new product) | Approved | reviewer |
+| Pending approval | Approve (movement) | Approved → Completed in the same step | reviewer |
+| Pending approval | Approve (transfer) | Approved (awaiting dispatch) | reviewer |
+| Approved (transfer) | Dispatch | Approved (in transit) | sending supervisor or site manager |
+| Approved (transfer) | Receipt acknowledged, or completed by exception | Completed | receiving custodian · site manager |
+| Pending approval | Reject (comment required) | Rejected | reviewer |
+| Rejected | Revise | new Draft (the rejected request is kept) | requester |
+
+### Roles (`CAN.prodRequest`, `CAN.prodReview`, `CAN.prodCustodian`)
+
+| | Biologist | Supervisor | Site manager (AFM) | Admin |
+|---|---|---|---|---|
+| Browse products | ✓ | ✓ | ✓ | ✓ |
+| Create, edit, withdraw own requests | ✓ | — | — | — |
+| Review | — | own sections | own sites | all |
+| Approve own request | never (refused by the model) | | | |
+| Change custodian | sites | own sections | own sites | all |
+| Move / transfer from the product | by request | directly (existing Move / Transfer sheets) | directly | directly |
+
+Routing: a request goes to the supervisors of the product's section (or of the picked enclosure's section for a new product) **or** to the site manager of the site; one approval decides. A new product without an enclosure has no section and goes to the site manager.
+
+### Notifications (existing in-app list: bell, My tasks)
+`notifications()` of model.js is extended, not replaced: **Request awaiting approval** (to the reviewers, while pending), **Request approved / rejected (with the comment) / Movement or Transfer completed** (to the requester), **Custodian changed** (to the new and the previous custodian). Reviewers also get a *Review request* row in My tasks. No email.
+
+### Dependencies and conflicts to confirm
+
+| # | Item | Prototype choice |
+|---|---|---|
+| D-E1 | Completion rule for a product request (issue from store? hand-over? custodian change?) | Stays **Approved**; nothing changes on the item. |
+| D-E2 | Does an approved proposal create a live product? | No. It needs the procurement / receipt flow (Receipts) to create the record. |
+| D-E3 | **Resolved in Phase 2 (owner's choice, 12 Oct):** Phase 1 completed a transfer on approval; PRD FR-11 and the Phase 2 brief require receipt. | Approval, dispatch and receipt are separate; the request is Completed only on receipt (§13). |
+| D-E4 | **Conflict:** brief says biologist is the default custodian and can reassign; PRD makes the section supervisor the custodian (`custodiansOf`, receive / transfer rules). | Custodian change allows biologist, supervisor or site manager of the site. The request's custodian defaults to the requester. Other PRD flows still pick custodians from supervisors / AFM. |
+| D-E5 | "Same-site movement" across sections | PRD `move()` allows only the same section (another section is a transfer). The destination list shows the product's section only; a cross-section move inside one site has no request type in Phase 1. |
+| D-E6 | Enrichment type of a product | The register has no type field. A product takes the type of the activities that use it; `SAMPLE_TYPES` fills the rest for the demo. Equipment with no type (cages, crates) is not listed. A real product-type attribute is needed. |
+| D-E7 | Product photos and descriptions | The register has no photo or description per product; the card shows a placeholder image and the category tracking. |
+| D-E8 | "Site manager" role | Mapped to the existing site-scoped AFM role; no new persona. |
+| D-E9 | Type-specific activity fields | Only fields that exist are shown (sub-type, duration, additives for food-based). The five types have no further defined fields. |
+| D-E10 | Request numbering, server checks, audit log | `ER-0001…` from the local sequence; every rule is in `products.js` and must be enforced by the backend API (hiding a button is not access control). |
+
+**Integration** for production: request API (create, update, withdraw, approve, reject) with server-side permission and routing; notification service; product-type and photo attributes on the item master; animal / species master. None of these exist in the prototype; everything runs on sample data in the browser.
+
+**Tests:** `tests/products.test.mjs` (12): types, associations, who requests, routing and self-approval, rejection comment, movement through `move()`, transfer through `transfer()` with acknowledgement still pending, edit / withdraw / draft, proposal rules, custodian change, tasks and notifications, revise. UI checks cover the Enrichments screens and sheets at 6 sizes (biologist, AFM, supervisor, admin).
+
+## 13 · Enrichments, Phase 2 — lifecycle controls
+
+Built from the *Phase 2 Implementation* brief, on the existing PRD rules of `model.js` (they are unchanged) and the Phase 1 module. Rules: `src/model/products.js` · parts: `src/ipad/enrichment-components.js` · screens: `src/ipad/enrichment-views.js` · two existing sheets in `src/ipad/actions.js` take an optional mode.
+
+**Owner decisions (12 Oct):** (1) transfers: approval, dispatch and receipt are separate steps; (2) the workshop repairability check of categories A and B stays a PRD rule and shows in Enrichments as a waiting step with no workshop actions.
+
+| Phase 2 step | Where | What runs underneath (existing unless marked new) |
+|---|---|---|
+| Movement and rotation | Product detail › Move; biologist through a movement request | `move()`: same record, same section, history *Moved* with from / to / reason / actor / time; a part of a group splits into its own record (PRD rule). Supervisor / site manager move directly (no approval in the configured rules); biologist needs a request (Phase 1). |
+| Storage and retrieval | Product detail › Location › **Store** / **Return to use** | `move()` to a store (status In storage) or to an enclosure / other place (In use); the destination list shows only that kind. Biologist: the same movement request with those destinations. Timeline: *Moved to storage* / *Returned to use* (the status change move() writes). |
+| Condition issue | Product detail › Condition and repair › **Report issue** | `flagIssue()`: issue type, condition from the existing list (Needs repair, Damaged, Unsafe), description, photos (category rules), reporter and time. Item goes Under assessment; a second report while one is open is refused. |
+| Repair | Condition and repair (steps with the action of the person signed in) | Routed checks from the category: animal-use check (biologist, `verifyAnimalUse()`), repairability check (PRD workshop / VIC role: waiting step only), or custodian decision (`decide()`); then `startRepair()` and `completeRepair()` (work done, team, return location, photos) by the supervisor / site manager. Earlier issues stay in *Earlier issues* (`item.repairs`). Beyond repair stops here (disposal is Phase 3). |
+| Transfer | Product detail › Transfer stages; Approvals › **To dispatch**; My tasks | **New:** `approveRequest()` no longer dispatches; `dispatchTransfer()` (date, reference, note) calls `transfer()` as the sender; `acknowledge()` / `completeWithoutAck()` of model.js are wrapped so that any receipt (Enrichments or the Transfers screen) completes the request. The item keeps its ID; site, location and custodian change only at receipt. |
+| Lifecycle timeline | Product detail › Lifecycle | **New** `lifecycleEvents()`: every item history entry plus the request log entries (submitted, approved, rejected, withdrawn), typed Movement · Storage · Condition · Repair · Transfer · Custodian · Request · Other, newest first, filter chips, 10 then *Show all*. Nothing is added that is not stored. |
+
+**Transfer stages** (one request, no extra status): Requested (*Pending approval*) → Approved (*Approved · Awaiting dispatch*) → In transit (*Approved · In transit*) → Received (*Completed*). The stage bar shows done (green), current (navy), next (navy outline) and to come (grey); the current stage carries its one action (Review, Dispatch or Acknowledge receipt) for the person allowed to take it.
+
+**Duplicate submissions:** the Done button disables on tap (existing); the rules also refuse a second open movement / transfer request for a product, a second pending product request by the same person, a second approval or rejection, a second dispatch, a second receipt, a second issue while one is open, and starting a repair twice.
+
+**Notifications (existing list):** *Transfer awaiting dispatch* (senders), *Transfer dispatched* and *Transfer received* / *completed by exception* (requester), *Transfer awaiting acknowledgement* (receiver, existing PRD notification).
+
+### Phase 2 dependencies and open decisions
+
+| # | Item | Prototype choice |
+|---|---|---|
+| D-P1 | Repairability check for categories A and B needs the PRD workshop / VIC role. | **Decided 12 Oct: no repairability check** (§14). |
+| D-P2 | Partial group moves create a new record for the part moved (PRD rule), which reads as a "new product". | Kept; the new record links to its parent (*Split from batch*). |
+| D-P3 | Cancel or reject an approved transfer before dispatch | Not supported; no rule exists. |
+| D-P4 | Cross-section move inside one site | PRD treats it as a transfer; the Phase 2 transfer request is inter-site only (D-E5). |
+| D-P5 | A condition assessment with no issue (item checked and fine) | No rule records it outside an audit (Phase 3); only issues are recorded. |
+| D-P6 | Backend | Every rule above runs in the browser on sample data; the API must enforce the same permissions and states (`dispatchTransfer`, receipt hook, duplicate checks). |
+
+**Tests:** `tests/lifecycle.test.mjs` (9): rotation, storage and retrieval, condition issue, repair with routed checks, repair with custodian decision, receipt through the Transfers screen and by exception, permissions, duplicate refusals, timeline accuracy. `tests/products.test.mjs` updated for the three-step transfer and duplicate rules. UI checks include the new sheets.
+
+## 14 · Minimal navigation and roles (owner's decision, 12 Oct)
+
+The owner asked for a simpler product: fewer screens, fewer roles, a bottom navigation.
+
+| Before | Now |
+|---|---|
+| Left sidebar with 12 entries (My tasks, Overview, Enrichments, Enrichment activities, Items, Receipts, Labels, Repairs, Transfers, Audits, Disposal, Reports) | **Bottom tab bar: Home · Enrichments · Requests** (GRC kit C-01 measures: 72 px, 12 px labels, 2 px Primary mark, badge on Home). |
+| 7 roles in *Viewing as* (keeper, supervisor, facility manager, biologist, workshop, approver, admin) | **Biologist · Supervisor · Site manager** only (the site-scoped AFM role is labelled *Site manager*). |
+| My tasks merged every module's work | **Home**: To do for this person in the Enrichments flow only, and Updates (anything already in To do is left out). Biologist: animal-use checks, drafts, rejected requests. Supervisor / site manager: reviews, dispatches, receipts, repair decision / start / complete. |
+| Module tab bar Products · My requests · Approvals | **Requests** tab opens the biologist's requests, or the approvals of a supervisor or site manager. |
+| Repairability check by the workshop role | **Removed.** After the biologist's animal-use check (when the category asks for one) the custodian decides: repair, clear or beyond repair. An item unsuitable for animals still goes to repair. `D.config.techCheck = false`, applied after the sample history (`noRepairCheck()` in products.js); open repairs that were waiting for the check go to the custodian. |
+
+Not in the navigation any more (code kept, reachable by URL only): Overview, the activity module (sessions, activities, species, material requests), Items, Receipts, Labels, Repairs board, Transfers, Audits, Disposal, Reports, Setup, and the + menu. Repairs and transfers are handled inside the product. Notifications show only this flow (biologist: request updates; supervisor / site manager: also transfers and repairs).
+
+Open: receipts (how new products enter the register) and disposal / audit (Phase 3) have no entry point in this navigation.
+
+## 15 · Design: the Antz tablet components (Components.md, 12 Oct)
+
+The owner supplied `Components.md` (the Antz procurement tablet kit). The app now uses it as its component library, rewritten for this plain-JS app in `src/ipad/antz-kit.js` (functions that return HTML) and `src/ipad/antz-kit.css` (class prefix `ak-`, Antz tokens only; the four kit colours without a token are alpha steps of existing tokens).
+
+| Kit component | Where it is used |
+|---|---|
+| AppBar | Page header (title, site as the sub line) and the bar of every full-screen panel (back, ID, type) |
+| CountTabs | Enrichment types on Products; request statuses on Requests |
+| ListBar + SearchBox | The band under the tabs: list title, 320 px rounded search, filter button, card / list switch |
+| Chips | Request types (Approvals), history types (product), active filters |
+| RecordCard + bands | Product cards (status band, custodian) and request cards (yours / waiting / approved / in progress / completed / rejected) |
+| Fab | New request (biologist) on Products and Requests |
+| BottomNav | Home · Enrichments · Requests, pill on the active tab, red badge |
+| FullPanel + StatusFoot | Product and request detail: header card, Stepper card, Cols (3 : 2) with Sections, fixed footer with the current status and the actions |
+| Stepper | Transfer (Requested → Approved → In transit → Received), issue and repair, request progress, and Details → Review in forms |
+| Section, KV, Timeline | Detail sections; history newest first, marked green |
+| ApproverRow, EndCard, DecisionButtons, ResultBanner, ReasonDialog | Request review: Reject / Approve in the footer; Approve shows *You Approved*; Reject asks for the required reason; a rejected request ends with the end card |
+| TaskTile | Home tiles by kind of work, tap to filter To do |
+| Sheet, SideSheet, PickRow, Field / TextIn / Choice / Stepper2 / PickField | Every form (bottom sheet with grab handle, title, close, footer), Filters (side sheet), pickers, Viewing as (RoleSheet) |
+
+Rules kept from the kit: no helper text in screens, one fact once (the decision reason shows in one place), one main action per footer, 44–48 px targets, tokens only, native tablet pattern (no frame).

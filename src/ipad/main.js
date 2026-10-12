@@ -3,9 +3,10 @@
   const q = new URLSearchParams(location.search);
   if (q.get('reset') === '1' || !load()) { fresh(); }
   if (q.get('as') && person(q.get('as'))) { UI.me = q.get('as'); UI.site = me().sites[0]; }
+  if (!['bio', 'sup', 'afm'].includes(me().role)) { UI.me = 'P-RAVI'; UI.site = me().sites[0]; }   // three roles only
   if (q.get('o')) UI.o = q.get('o') === 'portrait' ? 'portrait' : 'landscape';
-  const touchTablet = matchMedia('(pointer: coarse)').matches && Math.min(innerWidth, innerHeight) >= 700;
-  if (q.get('bare') === '1' || touchTablet) document.body.classList.add('bare');
+  // full screen by default; ?frame=1 shows the app inside the tablet frame (desktop review)
+  if (q.get('frame') === '1') document.body.classList.remove('bare');
   save();
   if (q.toString()) history.replaceState(null, '', location.pathname + (location.hash || '#/today'));
 

@@ -106,6 +106,8 @@ function pending() {
     if (t.kind === 'matReview') out.push({ k: 'Material request', t: t.title, s: t.meta[1], due: t.due, go: '#/matreq/' + t.ref, btn: 'Open' });
     if (t.kind === 'actChanges') out.push({ k: 'Changes requested', t: t.title, s: t.meta[1], due: '', go: '#/activities/' + t.ref, do: 'actResubmit', arg: t.ref, btn: 'Edit' });
   });
+  productTasks(UI.me).forEach(t => out.push(t.kind === 'prodDispatch' ? { k: 'Dispatch transfer', t: t.title, s: t.meta[1], due: t.due, go: '#/enrappr/' + t.ref, do: 'enrDispatch', arg: t.ref, btn: 'Dispatch' }
+    : { k: 'Review request', t: t.title, s: t.meta.join(' · '), due: t.due, go: '#/enrappr/' + t.ref, do: 'enrDecide', arg: t.ref, btn: 'Review' }));
   workTasks(UI.me).forEach(w => {
     const a = auditOf(w.audit), s = a ? auditStats(a) : null;
     if (w.kind === 'audit') out.push({ icon: 'audits', tone: 'info', k: 'Audit', t: w.title, s: `${siteName(a.site)} · ${s.checked} of ${s.n} checked · ${w.id}`, due: w.due, go: '#/audits/' + w.audit, btn: 'Continue' });
@@ -163,6 +165,8 @@ function createItems() {
     can(UI.me, 'actCreate') && { icon: 'sparkle', t: 'New activity', do: 'actNew' },
     can(UI.me, 'actAssign') && { icon: 'calendar', t: 'Assign activity', do: 'actAssign' },
     can(UI.me, 'matRequest') && { icon: 'newitem', t: 'Request material', do: 'actMat' },
+    can(UI.me, 'prodRequest') && !ENR_VIEWS.includes(UI.r?.v) && { icon: 'layers', t: 'Request product', do: 'enrRequest' },
+    can(UI.me, 'prodRequest') && !ENR_VIEWS.includes(UI.r?.v) && { icon: 'layers', t: 'Propose product', do: 'enrPropose' },
   ].filter(Boolean);
 }
 DO.create = (a, el) => popover(el, menu(createItems()), { w: 260 });
@@ -263,7 +267,7 @@ DO.regFilter = () => {
   const custs = [...new Set(siteItems().filter(isActive).map(i => i.custodian))];
   sheet({
     title: 'Filters',
-    left: `<button class="text-btn" data-do="regReset">Reset</button>`,
+    left: 'regReset',
     body: f => fg('Sort by', [cSeg('sort', f, [['section', 'Section'], ['name', 'Name'], ['id', 'ID'], ['verified', 'Verified']])])
       + fg('Category', [cOpts('', 'cat', f, [['', 'All'], ...D.categories.filter(c => c.mode !== 'excluded').map(c => [c.id, `${c.code} · ${c.name.split(' ')[0]}`])])])
       + fg('Condition', [cOpts('', 'cond', f, [['', 'Any'], ...['good', 'needsrepair', 'damaged', 'unsafe', 'beyond'].map(k => [k, COND[k]])])])
@@ -616,12 +620,10 @@ VIEWS.denied = { label: '', icon: 'shield', layout: 'full', full: () => ({ title
 
 /* ============ demo guide ============ */
 const GUIDE = [
-  ['A', 'Receipt and registration', 'P-RAVI', '#/receipts/TK-2051', 'receive'], ['B', 'Move or rotate an item', 'P-RAVI', '#/register/EF-0006', 'move'],
-  ['C', 'Damage, checks and repair', 'P-ANJ', '#/repairs', 'repairs'], ['D', 'Transfer and acknowledgement', 'P-RAVI', '#/transfers', 'transfers'],
-  ['E', 'Schedule and run an audit', 'P-MEERA', '#/audits', 'audits'], ['F', 'Disposal and approval', 'P-SUR', '#/disposals', 'disposals'],
-  ['G', 'Pending action to done', 'P-LAKS', '#/today', 'today'], ['H', 'Configure categories', 'P-NEHA', '#/setup/CAT-A', 'setup'],
-  ['I', 'Run and record a session', 'P-PRIYA', '#/sessions', 'calendar'], ['J', 'Approve a new activity', 'P-ANJ', '#/activities/ACT-0013', 'sparkle'],
-  ['K', 'Material request: reuse or buy', 'P-RAVI', '#/matreq', 'newitem'], ['L', 'Assign a recommended activity', 'P-RAVI', '#/species/SP-HGB', 'paw'],
+  ['1', 'Request a product', 'P-ANJ', '#/enrichments', 'layers'], ['2', 'Review a request', 'P-RAVI', '#/enrappr', 'newitem'],
+  ['3', 'Store or return to use', 'P-RAVI', '#/enrichments/EF-0001', 'layers'], ['4', 'Animal-use check on an issue', 'P-ANJ', '#/enrichments/EF-0012', 'paw'],
+  ['5', 'Decide and repair', 'P-RAVI', '#/today', 'repairs'], ['6', 'Dispatch a transfer', 'P-LAKS', '#/enrappr', 'truck'],
+  ['7', 'Receive a transfer', 'P-ARUN', '#/enrichments/EB-0007', 'receive'],
 ];
 DO.guide = () => {
   closePop(true);
