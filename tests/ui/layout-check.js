@@ -4,13 +4,13 @@
   const HSCROLL = '.chips, .board, .photos, .tbl-wrap, .sb__nav';
   const check = where => {
     // 1 · unbalanced markup in painted regions
-    ['#lrows', '#lhead', '#dbody', '#fbody', '#sbody'].forEach(id => { const el = document.querySelector(id); if (!el || !el._html) return;
+    ['#lrows', '#ltabs', '#dbody', '#fbody', '#sbody', '#hdr'].forEach(id => { const el = document.querySelector(id); if (!el || !el._html) return;
       const o = (el._html.match(/<div\b/g) || []).length, c = (el._html.match(/<\/div>/g) || []).length; if (o !== c) out.push(`${where}: ${id} div open ${o} / close ${c}`); });
     // 2 · anything spilling past its container (column, sheet, card, popover) on the right
     document.querySelectorAll('#screen *').forEach(el => {
       const r = el.getBoundingClientRect(); if (!r.width || !r.height || getComputedStyle(el).visibility === 'hidden') return;
       if (el.closest(HSCROLL)) return;
-      const box = el.parentElement && el.parentElement.closest('.card, .w, .fg__c, .sheet, .pop, .col, .kcard, .lane, .label, .next, .line');
+      const box = el.parentElement && el.parentElement.closest('.card, .w, .fg__c, .sheet, .pop, .col, .pane, .band, .hdr, .hero, .row, .kcard, .lane, .label, .next, .line');
       if (!box) return; const b = box.getBoundingClientRect();
       if (r.right > b.right + 1.5 || r.left < b.left - 1.5) out.push(`${where}: ${el.tagName.toLowerCase()}.${String(el.className).split(' ')[0]} "${(el.textContent || '').trim().slice(0, 24)}" spills ${Math.round(Math.max(r.right - b.right, b.left - r.left))}px out of .${box.className.split(' ')[0]}`);
     });

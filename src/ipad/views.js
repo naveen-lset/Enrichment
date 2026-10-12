@@ -2,8 +2,9 @@
 // Split views: a list column and a detail pane (iPad split view). Full views: one wide pane. Actions open sheets from actions.js.
 
 const R = (...roles) => () => roles.includes(role());
+const mlist = rows => `<div class="mlist">${rows.map(([k, v]) => `<div><span>${esc(k)}</span><b>${v}</b></div>`).join('')}</div>`;
 // lrow({href | do+arg, on, t, s, right, lead}) — one list row: title, one detail line, an optional right side
-const lrow = o => `<div class="row ${o.on ? 'on' : ''}" ${o.do ? `data-do="${o.do}" data-arg="${esc(o.arg)}"` : `data-go="${o.href}"`}>${o.lead || ''}<div class="row__b"><div class="row__t">${o.t}</div>${o.s ? `<div class="row__s">${o.s}</div>` : ''}</div>${o.right ? `<div class="row__e">${o.right}</div>` : ''}</div>`;
+const lrow = o => `<div class="row ${o.on ? 'on' : ''}" ${o.do ? `data-do="${o.do}" data-arg="${esc(o.arg)}"` : `data-go="${o.href}"`}>${o.lead || ''}<div class="row__b"><div class="row__t">${o.t}</div>${o.s ? `<div class="row__s">${o.s}</div>` : ''}${o.badge ? `<div class="row__badge">${o.badge}</div>` : ''}</div>${o.right ? `<div class="row__e">${o.right}</div>` : ''}${o.do ? '' : `<span class="row__chev">${ic('right', 20)}</span>`}</div>`;
 const siteItems = () => D.items.filter(inSite);
 const activeItems = () => siteItems().filter(isActive);
 
@@ -123,7 +124,7 @@ VIEWS.today = {
     const mine = activeItems().filter(it => role() !== 'sup' || me().sections.includes(it.section));
     const cnt = st => mine.filter(i => st.includes(i.status)).length;
     const notes = notifications(UI.me);
-    const html = `<div class="hello"><div style="flex:1"><h1 class="hello__t">My tasks</h1><div class="hello__d">${dow(nowIs())} ${+nowIs().slice(8, 10)} ${['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December'][+nowIs().slice(5, 7) - 1]}</div></div></div>
+    const html = `
       <div class="today"><div class="stack">${card('', groups.length ? `<div class="tasks">${groups.map(([g, ts, c]) => `<div class="tasks__h ${c}">${g}<span>${ts.length}</span></div>${ts.map(taskRow).join('')}`).join('')}</div>` : empty('ok', 'All clear', '', true))}</div>
       <div class="stack">
         <div class="w"><div class="w__t">${role() === 'sup' ? 'My sections' : esc(siteLabel())}</div><div class="stats4">
@@ -172,7 +173,7 @@ VIEWS.overview = {
     });
     const rp = siteItems().filter(i => i.repair);
     const pipe = [['Assessment', rp.filter(i => i.repair.state === 'assessment').length], ['Approved', rp.filter(i => i.repair.state === 'approved').length], ['In repair', rp.filter(i => i.repair.state === 'repair').length], ['Beyond repair', rp.filter(i => i.repair.state === 'beyond').length]];
-    const html = `${lt('Overview')}
+    const html = `
       <div class="grid"><div class="w w--4 kstats">
         ${kpi(units ? 'Tracked units' : 'Tracked items', total, 'register', '', 'register|st|all')}
         ${kpi('In use', n('inuse') + n('available'), 'paw', 'ok', 'register|st|inuse')}
@@ -189,7 +190,7 @@ VIEWS.overview = {
         <div class="w w--4"><div class="w__t">By section</div><div class="tbl-wrap"><table class="tbl"><thead><tr><th>Section</th><th>Items</th><th>In use</th><th>Storage</th><th>Attention</th><th>Verified ≤ 30 days</th></tr></thead><tbody>
           ${secs.map(x => `<tr data-do="drill" data-arg="register|sec|${x.s.id}"><td><b>${esc(x.s.name)}</b></td><td>${x.n}</td><td>${x.use}</td><td>${x.st}</td><td>${x.att ? `<span class="pill pill--warn">${x.att}</span>` : '0'}</td><td>${x.n ? Math.round(x.v / x.n * 100) : 0}%<span class="mini"><i style="width:${x.n ? x.v / x.n * 100 : 0}%"></i></span></td></tr>`).join('')}</tbody></table></div></div>
       </div>`;
-    return { title: 'Overview', html, right: seg('units', [{ v: 'records', t: 'Records' }, { v: 'units', t: 'Units' }], units ? 'units' : 'records', 'units'), key: units ? 'u' : 'r' };
+    return { title: 'Overview', html: `<div class="ctop"><span>${esc(siteLabel())}</span>${seg('units', [{ v: 'records', t: 'Records' }, { v: 'units', t: 'Units' }], units ? 'units' : 'records', 'units')}</div>` + html, key: units ? 'u' : 'r' };
   },
 };
 DO.units = v => { UI.f.overview = { units: v }; render(); };
@@ -217,7 +218,7 @@ function regItems(f) {
 const quiet = it => !it.disposal && ['inuse', 'available', 'storage'].includes(it.status);
 function itemRow(it, on, opts = {}) {
   const a = itemActs(it), acts = [a.move && `<button class="a-move" data-do="actMove" data-arg="${it.id}">Move</button>`, a.flag && `<button class="a-flag" data-do="actFlag" data-arg="${it.id}">Issue</button>`].filter(Boolean);
-  const row = `<div class="row ${on ? 'on' : ''}" data-go="${opts.href || '#/register/' + it.id}" data-ctx="item:${it.id}"><div class="row__b"><div class="row__t">${esc(it.name)}${it.mode === 'batch' ? ` <span class="row__m">× ${it.qty}</span>` : ''}</div><div class="row__s">${esc(it.id)} · ${esc(it.status === 'transit' ? 'In transit' : locName(it.loc))}</div></div><div class="row__e">${quiet(it) ? '' : stPill(it)}${opts.meta ? `<span class="row__m">${opts.meta}</span>` : ''}</div></div>`;
+  const row = `<div class="row ${on ? 'on' : ''}" data-go="${opts.href || '#/register/' + it.id}" data-ctx="item:${it.id}"><div class="row__b"><div class="row__t">${esc(it.name)}${it.mode === 'batch' ? ` <span class="row__m">× ${it.qty}</span>` : ''}</div><div class="row__s">${esc(it.id)} · ${esc(it.status === 'transit' ? 'In transit' : locName(it.loc))}</div></div><div class="row__e">${quiet(it) ? '' : stPill(it)}${opts.meta ? `<span class="row__m">${opts.meta}</span>` : ''}</div><span class="row__chev">${ic('right', 20)}</span></div>`;
   return acts.length && !opts.noSwipe ? `<div class="swipe"><div class="swipe__acts">${acts.join('')}</div>${row}</div>` : row;
 }
 VIEWS.register = {
@@ -231,15 +232,15 @@ VIEWS.register = {
     const chips = `<div class="chips">${ST_CHIPS.map(([k, t]) => `<button class="chip ${f.st === k ? 'on' : ''}" data-do="regSt" data-arg="${k}">${t}</button>`).join('')}</div>${tokens.length ? `<div class="tokens">${tokens.map(([k, t]) => `<button class="token" data-do="regUnset" data-arg="${k}">${esc(t)}${ic('x', 13)}</button>`).join('')}<button class="token-clear" data-do="regClear">Clear</button></div>` : ''}`;
     let rows;
     if (!sorted.length) rows = empty('search', UI.q.register ? 'No results' : 'No items', '', true, nFilters ? `<button class="btn btn--tint btn--sm" data-do="regClear">Clear filters</button>` : '');
-    else if (f.sort === 'section') rows = [...new Set(sorted.map(i => i.section))].map(s => { const g = sorted.filter(i => i.section === s); return `<div class="sec-h">${esc(secName(s))}</div><div class="rows">${g.map(it => itemRow(it, it.id === r.id)).join('')}</div>`; }).join('');
+    else if (f.sort === 'section') rows = [...new Set(sorted.map(i => i.section))].map(s => { const g = sorted.filter(i => i.section === s); return `<div class="sec-h">${esc(secName(s))} (${g.length})</div><div class="rows">${g.map(it => itemRow(it, it.id === r.id)).join('')}</div>`; }).join('');
     else rows = `<div class="rows" style="margin-top:8px">${sorted.map(it => itemRow(it, it.id === r.id, { meta: f.sort === 'verified' ? fs(it.lastVerified) : '' })).join('')}</div>`;
-    return { title: 'Items', search: 'Search items', rows: chips + rows,
-      right: `<button class="icon-btn" data-do="regFilter" aria-label="Filter">${ic('filter', 22)}${nFilters ? `<span class="dot">${nFilters}</span>` : ''}</button>` };
+    return { title: 'Items', search: 'Search items', filter: { do: 'regFilter', n: nFilters }, rows: `<div class="lcount"><span>Items (${list.length})</span><button class="pillbtn" data-do="regSort">${ic('sort', 16)}${SORTS[f.sort]}</button></div>` + chips + rows, };
   },
   detail(r) { return itemDetail(r.id, '#/register/' + r.id); },
 };
 DO.regSt = k => { UI.f.register = Object.assign(regFilter(), { st: k }); render(); };
 DO.regClear = () => { UI.f.register = { st: regFilter().st }; render(); };
+DO.regSort = (a, el) => popover(el, menu(Object.entries(SORTS).map(([k, t]) => ({ t, do: 'regSet', arg: 'sort|' + k, on: regFilter().sort === k }))), { w: 220 });
 DO.regUnset = k => { UI.f.register = Object.assign(regFilter(), { [k]: '' }); render(); };
 DO.regFilter = () => {
   const secs = D.sections.filter(x => UI.site === 'all' || x.site === UI.site);
@@ -276,15 +277,15 @@ function itemDetail(id, base, compact) {
   let body = '';
   if (tab === 'overview') {
     body = `${nextCard(n)}${!n && qa.length ? `<div class="qa">${qa.map(([i, t, d]) => `<button class="qa__b ${d === 'actDispose' ? 'danger' : ''}" data-do="${d}" data-arg="${it.id}">${t}</button>`).join('')}</div>` : ''}
-      ${groupT('Location')}${card('', kv([['Location', `${it.status === 'transit' ? 'In transit' : esc(locName(it.loc))}<small>${esc(secName(it.section))} · ${esc(siteName(it.site))}</small>`], ['Custodian', personRow(it.custodian)], ['Last verified', `${fd(it.lastVerified)}`]]))}
-      ${groupT('Details')}${card('', kv([['Category', `${esc(c.code)} · ${esc(c.name)}<small>${it.mode === 'batch' ? `Group · ${it.qty} units` : 'Individual'}</small>`],
+      ${card('Location', kv([['Location', `${it.status === 'transit' ? 'In transit' : esc(locName(it.loc))}<small>${esc(secName(it.section))} · ${esc(siteName(it.site))}</small>`], ['Custodian', personRow(it.custodian)], ['Last verified', `${fd(it.lastVerified)}`]]))}
+      ${card('Details', kv([['Category', `${esc(c.code)} · ${esc(c.name)}<small>${it.mode === 'batch' ? `Group · ${it.qty} units` : 'Individual'}</small>`],
         it.parent && ['Split from', `<span class="link" data-go="#/register/${it.parent}">${esc(it.parent)}</span>`], it.ticket && ['References', `<span class="link" data-go="#/receipts/${it.ticket}">${esc(it.ticket)}</span>${[it.ws, it.mt].filter(Boolean).map(x => `<span class="row__m">${esc(x)}</span>`).join('')}`],
         ['Received', fd(it.received)], it.labelled && ['Label printed', fd(it.labelled)], it.final && ['Final disposition', esc(DISPOSITION[it.final])]]))}
-      ${it.photos.length ? groupT('Evidence') + card('', photos(it.photos)) : ''}`;
+      ${it.photos.length ? card('Evidence', photos(it.photos)) : ''}`;
   } else if (tab === 'history') {
     body = card('', timeline(it.history));
   } else {
-    const sec = (t, rows) => rows.length ? groupT(t) + card('', `<div class="cardlist">${rows.join('')}</div>`) : '';
+    const sec = (t, rows) => rows.length ? card(t, `<div class="cardlist">${rows.join('')}</div>`) : '';
     body = [
       sec('Tasks', wtasks.map(t => `<div class="row" data-go="#/audits/${t.audit}"><div class="row__b"><div class="row__t">${esc(t.title)}</div><div class="row__s">${t.id} · ${esc(nm(t.assignee))}</div></div>${pill(t.state === 'done' ? 'Done' : 'Open', t.state === 'done' ? 'ok' : 'warn')}</div>`)),
       sec('Assessments', assessments.map(x => `<div class="row" style="cursor:default"><div class="row__b"><div class="row__t">${esc(x.t)}</div><div class="row__s">${x.by ? esc(nm(x.by)) + ' · ' + rel(x.at) : 'Waiting'}${x.note ? ' · ' + esc(x.note) : ''}</div></div>${pill(RES[x.res] || x.res, x.tone)}</div>`)),
@@ -312,7 +313,7 @@ VIEWS.receipts = {
     const all = D.tickets.filter(t => inSiteT(t) && canSeeT(t) && match(q, t.id, t.name, t.mt, t.ws, secName(t.section)));
     const list = tab === 'waiting' ? all.filter(t => t.status === 'dispatched').sort((a, b) => a.dispatched.localeCompare(b.dispatched)) : all.filter(t => t.status !== 'dispatched').sort((a, b) => b.receivedAt.localeCompare(a.receivedAt));
     const rows = list.map(t => lrow({ href: '#/receipts/' + t.id, on: r.id === t.id, t: esc(t.name), s: `${t.id} · ${t.qty} × ${by('categories', t.cat).code} · ${esc(secName(t.section))}`, right: t.status === 'dispatched' ? dueChip(addDays(t.dispatched, D.config.receiptDays).slice(0, 10)) : `<span class="row__m">${fs(t.receivedAt)}</span>` })).join('');
-    return { title: 'Receipts', search: 'Search deliveries', rows: `<div class="list-seg">${seg('rcp', [{ v: 'rcp|waiting', t: 'Waiting' }, { v: 'rcp|received', t: 'Received' }], 'rcp|' + tab, 'tabSet', 'seg--block')}</div><div class="rows">${rows || empty('receipts', tab === 'waiting' ? 'Nothing waiting' : 'Nothing received', '', true)}</div>` };
+    return { title: 'Receipts', search: 'Search deliveries', tabs: `${seg('rcp', [{ v: 'rcp|waiting', t: 'Waiting' }, { v: 'rcp|received', t: 'Received' }], 'rcp|' + tab, 'tabSet', 'seg--block')}`, rows: `<div class="rows">${rows || empty('receipts', tab === 'waiting' ? 'Nothing waiting' : 'Nothing received', '', true)}</div>` };
   },
   detail(r) {
     const t = by('tickets', r.id);
@@ -322,9 +323,9 @@ VIEWS.receipts = {
     const created = (t.items || []).map(itemOf).filter(Boolean);
     const html = `<div class="hero"><div class="hero__b"><h2 class="hero__t">${esc(t.name)}</h2><div class="hero__s">${t.id}</div><div class="hero__p">${waiting ? pill('Waiting', 'info', '', true) + (dueChip(due)) : pill(t.excluded ? 'Received · not tracked' : 'Received', 'ok', '', true)}</div></div></div>
       ${waiting && can(UI.me, 'receive', { section: t.section, site: sectionOf(t.section).site }) ? `<button class="btn btn--fill btn--lg btn--block" data-do="actReceive" data-arg="${t.id}">${ic('receive', 20)}Receive</button>` : ''}
-      ${groupT('Request')}${card('', kv([['Item', esc(t.name)], ['Quantity', `<span class="num">${t.qty}</span>`], ['Category', `${c.code} · ${esc(c.name)}`], ['Tracking', { individual: 'Individual · one record per unit', batch: 'Group / quantity · one record', excluded: 'Excluded · no record' }[c.mode]], ['Section', esc(secName(t.section))], ['Requested by', personRow(t.requestedBy)], t.ws && ['Workshop order', esc(t.ws)], ['Material transfer', esc(t.mt)]]))}
-      ${groupT('Progress')}${card('', `<div class="steps">${st('done', 'newitem', 'Requested', esc(nm(t.requestedBy)))}${st('done', 'truck', 'Dispatched', ft2(t.dispatched))}${st(waiting ? 'now' : 'done', 'receive', 'Received', waiting ? '' : `${esc(nm(t.receivedBy))} · ${ft2(t.receivedAt)}${t.discrepancy ? ' · ' + esc(t.discrepancy) : ''}`)}${st(waiting ? '' : t.excluded ? 'skip' : 'done', 'register', t.excluded ? 'Not registered' : 'Registered', created.length ? plural(created.length, 'record') : '')}</div>`)}
-      ${created.length ? groupT('Records') + card('', `<div class="cardlist">${created.map(it => itemRow(it, false, { noSwipe: true })).join('')}</div>`) : ''}`;
+      ${card('Request', kv([['Item', esc(t.name)], ['Quantity', `<span class="num">${t.qty}</span>`], ['Category', `${c.code} · ${esc(c.name)}`], ['Tracking', { individual: 'Individual · one record per unit', batch: 'Group / quantity · one record', excluded: 'Excluded · no record' }[c.mode]], ['Section', esc(secName(t.section))], ['Requested by', personRow(t.requestedBy)], t.ws && ['Workshop order', esc(t.ws)], ['Material transfer', esc(t.mt)]]))}
+      ${card('Progress', `<div class="steps">${st('done', 'newitem', 'Requested', esc(nm(t.requestedBy)))}${st('done', 'truck', 'Dispatched', ft2(t.dispatched))}${st(waiting ? 'now' : 'done', 'receive', 'Received', waiting ? '' : `${esc(nm(t.receivedBy))} · ${ft2(t.receivedAt)}${t.discrepancy ? ' · ' + esc(t.discrepancy) : ''}`)}${st(waiting ? '' : t.excluded ? 'skip' : 'done', 'register', t.excluded ? 'Not registered' : 'Registered', created.length ? plural(created.length, 'record') : '')}</div>`)}
+      ${created.length ? card('Records', `<div class="cardlist">${created.map(it => itemRow(it, false, { noSwipe: true })).join('')}</div>`) : ''}`;
     return { title: t.name, html };
   },
 };
@@ -351,7 +352,7 @@ VIEWS.repairs = {
       const done = siteItems().flatMap(it => (it.repairs || []).map(x => ({ it, x }))).sort((a, b) => (b.x.done?.at || '').localeCompare(a.x.done?.at || ''));
       html = card('', done.length ? `<div class="cardlist">${done.map(({ it, x }) => `<div class="row" data-go="#/repairs/${it.id}"><div class="row__b"><div class="row__t">${esc(it.name)} · ${esc(x.issue)}</div><div class="row__s">${x.id} · ${esc(x.done?.notes || '')}</div></div><div class="row__e">${pill(x.state === 'cleared' ? 'Cleared' : x.state === 'closed' ? 'Closed' : 'Repaired', x.state === 'closed' ? '' : 'ok')}<span class="row__m">${fs(x.done?.at)}</span></div></div>`).join('')}</div>` : empty('repairs', 'No completed repairs', '', true));
     }
-    return { title: 'Repairs & Issues', key: tab, html: `${lt('Repairs & Issues')}<div style="margin-bottom:20px">${seg('rtab', [{ v: 'board', t: 'Open' }, { v: 'done', t: 'Completed' }], tab, 'repTab')}</div>${html}` };
+    return { title: 'Repairs & Issues', key: tab, html: `<div style="margin-bottom:16px">${seg('rtab', [{ v: 'board', t: 'Open' }, { v: 'done', t: 'Completed' }], tab, 'repTab')}</div>${html}` };
   },
   slide(r) { if (!r.id) return null; const d = itemDetail(r.id, '#/repairs/' + r.id, true); return { close: '#/repairs', title: d.title, html: d.html, right: d.right, key: r.id + '/' + (UI.tab.item || 'overview') }; },
 };
@@ -369,7 +370,7 @@ VIEWS.transfers = {
     const list = tab === 'transit' ? all.filter(x => !x.t.ack).sort((a, b) => a.t.dispatched.localeCompare(b.t.dispatched)) : all.filter(x => x.t.ack).sort((a, b) => b.t.ack.at.localeCompare(a.t.ack.at));
     const rows = list.map(({ t, it }) => { const days = daysBetween(t.dispatched, t.ack ? t.ack.at : nowIs());
       return lrow({ href: '#/transfers/' + t.id, on: r.id === t.id, t: esc(it.name), s: `${esc(secName(t.from.section))} → ${esc(secName(t.to.section))}`, right: t.ack ? `<span class="row__m">${fs(t.ack.at)}</span>` : `<span class="due ${days > 2 ? 'late' : ''}">${plural(days, 'day')}</span>` }); }).join('');
-    return { title: 'Transfers', search: 'Search transfers', rows: `<div class="list-seg">${seg('trf', [{ v: 'trf|transit', t: 'In transit' }, { v: 'trf|done', t: 'Completed' }], 'trf|' + tab, 'tabSet', 'seg--block')}</div><div class="rows">${rows || empty('transfers', 'No transfers', '', true)}</div>` };
+    return { title: 'Transfers', search: 'Search transfers', tabs: `${seg('trf', [{ v: 'trf|transit', t: 'In transit' }, { v: 'trf|done', t: 'Completed' }], 'trf|' + tab, 'tabSet', 'seg--block')}`, rows: `<div class="rows">${rows || empty('transfers', 'No transfers', '', true)}</div>` };
   },
   detail(r) {
     const x = D.items.map(it => ({ it, t: [...(it.transfer ? [it.transfer] : []), ...(it.transfers || [])].find(t => t.id === r.id) })).find(y => y.t);
@@ -379,7 +380,7 @@ VIEWS.transfers = {
     const html = `<div class="hero"><div class="hero__b"><h2 class="hero__t">${esc(it.name)}</h2><div class="hero__s"><span class="link" data-go="#/register/${it.id}">${it.id}</span><span>·</span><span>${t.id}</span></div><div class="hero__p">${t.ack ? pill(t.exception ? 'Completed by exception' : 'Received', t.exception ? 'attn' : 'ok', '', true) : pill('In transit', 'info', '', true)}</div></div></div>
       ${n ? nextCard(n) : ''}
       ${card('', `<div class="route ${t.ack ? 'done' : ''}">${end('From', t.from.section, t.from.site, t.from.custodian, t.from.loc)}<div class="route__line"><span class="route__truck">${ic(t.ack ? 'check' : 'truck', 19)}</span></div>${end('To', t.to.section, t.to.site, t.to.custodian, t.ack?.loc)}</div>`)}
-      ${groupT('Details')}${card('', kv([['Reference', esc(t.ref || '—')], ['Dispatched', `${ft2(t.dispatched)} · ${esc(nm(t.by))}`], t.note && ['Note', esc(t.note)], t.ack && ['Received', `${ft2(t.ack.at)} · ${esc(nm(t.ack.by))}`], t.ack && ['Arrival condition', pill(COND[t.ack.cond], CTONE[t.ack.cond])], t.exception && ['Exception reason', esc(t.exception)], !t.ack && ['In transit', plural(daysBetween(t.dispatched, nowIs()), 'day')]]))}
+      ${card('Details', kv([['Reference', esc(t.ref || '—')], ['Dispatched', `${ft2(t.dispatched)} · ${esc(nm(t.by))}`], t.note && ['Note', esc(t.note)], t.ack && ['Received', `${ft2(t.ack.at)} · ${esc(nm(t.ack.by))}`], t.ack && ['Arrival condition', pill(COND[t.ack.cond], CTONE[t.ack.cond])], t.exception && ['Exception reason', esc(t.exception)], !t.ack && ['In transit', plural(daysBetween(t.dispatched, nowIs()), 'day')]]))}
       ${!t.ack && can(UI.me, 'transferException') ? `<div style="margin-top:14px"><button class="btn btn--plain btn--block" data-do="actException" data-arg="${it.id}">Complete by exception</button></div>` : ''}`;
     return { title: it.name, html };
   },
@@ -393,8 +394,8 @@ VIEWS.disposals = {
     const q = UI.q.disposals || '', tab = UI.tab.disposals || 'open';
     const open = d => ['validation', 'approval', 'approved'].includes(d.state);
     const list = D.disposals.filter(d => inSite(itemOf(d.item)) && match(q, d.id, itemOf(d.item).name, d.reason) && (tab === 'open' ? open(d) : !open(d))).sort((a, b) => b.at.localeCompare(a.at));
-    const rows = list.map(d => lrow({ href: '#/disposals/' + d.id, on: r.id === d.id, t: esc(itemOf(d.item).name), s: `${d.id} · ${esc(d.reason)}`, right: dPill(d) })).join('');
-    return { title: 'Disposal & Approvals', search: 'Search requests', rows: `<div class="list-seg">${seg('dsp', [{ v: 'dsp|open', t: 'Open' }, { v: 'dsp|closed', t: 'Closed' }], 'dsp|' + tab, 'tabSet', 'seg--block')}</div><div class="rows">${rows || empty('disposals', 'No requests', '', true)}</div>` };
+    const rows = list.map(d => lrow({ href: '#/disposals/' + d.id, on: r.id === d.id, t: esc(itemOf(d.item).name), s: `${d.id} · ${esc(d.reason)}`, badge: dPill(d) })).join('');
+    return { title: 'Disposal & Approvals', search: 'Search requests', tabs: `${seg('dsp', [{ v: 'dsp|open', t: 'Open' }, { v: 'dsp|closed', t: 'Closed' }], 'dsp|' + tab, 'tabSet', 'seg--block')}`, rows: `<div class="rows">${rows || empty('disposals', 'No requests', '', true)}</div>` };
   },
   detail(r) {
     const d = disposalOf(r.id);
@@ -405,11 +406,11 @@ VIEWS.disposals = {
     const dec = d.decision;
     const html = `<div class="hero"><div class="hero__b"><h2 class="hero__t">${esc(it.name)}</h2><div class="hero__s"><span class="link" data-go="#/register/${it.id}">${it.id}</span><span>·</span><span>${d.id}${d.expedited ? ' · Expedited' : ''}</span></div><div class="hero__p">${dPill(d, true)}</div></div></div>
       ${n ? nextCard(n) : ''}
-      ${groupT('Approval path')}${card('', `<div class="steps">${st('done', 'flag', 'Requested', `${esc(nm(d.by))} · ${rel(d.at)}`)}${val(d.needBio, d.bio, 'Animal-use validation', 'paw')}${val(d.needTech, d.tech, 'Repairability validation', 'repairs')}
+      ${card('Approval path', `<div class="steps">${st('done', 'flag', 'Requested', `${esc(nm(d.by))} · ${rel(d.at)}`)}${val(d.needBio, d.bio, 'Animal-use validation', 'paw')}${val(d.needTech, d.tech, 'Repairability validation', 'repairs')}
         ${dec ? st(dec.approved ? 'done' : 'bad', dec.approved ? 'shield' : 'x', dec.approved ? 'Approved' : 'Rejected', `${esc(nm(dec.by))} · ${rel(dec.at)}`, dec.note) : st(d.state === 'approval' ? 'now' : '', 'shield', 'Approval', esc(nm(d.approver)))}
         ${d.state === 'rejected' ? '' : st(d.completed ? 'done' : d.state === 'approved' ? 'now' : '', 'disposals', d.completed ? DISPOSITION[d.outcome] : 'Final disposition', d.completed ? `${esc(nm(d.completed.by))} · ${rel(d.completed.at)}` : '', d.completed?.note)}</div>`)}
-      ${groupT('Request')}${card('', kv([['Reason', esc(d.reason)], ['Condition', pill(COND[d.cond], CTONE[d.cond])], d.notes && ['Notes', esc(d.notes)], ['Approver', personRow(d.approver)]]))}
-      ${d.photos.length ? groupT('Evidence') + card('', photos(d.photos)) : ''}`;
+      ${card('Request', kv([['Reason', esc(d.reason)], ['Condition', pill(COND[d.cond], CTONE[d.cond])], d.notes && ['Notes', esc(d.notes)], ['Approver', personRow(d.approver)]]))}
+      ${d.photos.length ? card('Evidence', photos(d.photos)) : ''}`;
     return { title: it.name, html };
   },
 };
@@ -427,7 +428,7 @@ VIEWS.audits = {
     } else if (tab === 'schedules') {
       rows = W().schedules.filter(inSite).map(s => { const nx = nextOccurrence(s); return `<div class="row ${r.id === s.id ? 'on' : ''}" data-go="#/audits/${s.id}"><div class="row__b"><div class="row__t">${esc(templateOf(s.template).name)}</div><div class="row__s">${esc(siteName(s.site))} · ${FREQ[s.freq].t}</div></div><div class="row__e"><span class="row__m">Next ${esc(nx?.period || '—')}</span></div></div>`; }).join('');
     } else rows = W().templates.map(t => `<div class="row ${r.id === t.id ? 'on' : ''}" data-go="#/audits/${t.id}"><div class="row__b"><div class="row__t">${esc(t.name)}</div><div class="row__s">${TPL_KIND[t.kind]} · ${plural(t.checks.length, 'check')}</div></div></div>`).join('');
-    return { title: 'Inspections & Audits', rows: `<div class="list-seg">${seg('atab', [{ v: 'sessions', t: 'Sessions' }, { v: 'schedules', t: 'Schedules' }, { v: 'templates', t: 'Templates' }], tab, 'audTab', 'seg--block')}</div><div class="rows">${rows || empty('audits', 'Nothing here', '', true)}</div>`,
+    return { title: 'Inspections & Audits', tabs: `${seg('atab', [{ v: 'sessions', t: 'Sessions' }, { v: 'schedules', t: 'Schedules' }, { v: 'templates', t: 'Templates' }], tab, 'audTab', 'seg--block')}`, rows: `<div class="rows">${rows || empty('audits', 'Nothing here', '', true)}</div>`,
       right: can(UI.me, 'auditCreate') ? `<button class="icon-btn" data-do="actSchedule" aria-label="Schedule audit">${ic('plus', 23)}</button>` : '' };
   },
   detail(r) {
@@ -471,16 +472,16 @@ function scheduleDetail(id) {
   const occ = s.occurrences.slice().reverse().map(o => { const a = auditOf(o.audit), tk = taskOf(o.task); return `<div class="row" data-go="#/audits/${o.audit}"><div class="row__b"><div class="row__t">${esc(o.period)}</div><div class="row__s">${a.id} · ${tk.id} · ${esc(nm(a.auditor))}</div></div><div class="row__e">${pill(a.state === 'closed' ? 'Closed' : 'Open', a.state === 'closed' ? 'ok' : 'info')}</div></div>`; }).join('');
   const html = `<div class="hero"><div class="hero__b"><h2 class="hero__t">${esc(t.name)}</h2><div class="hero__s">${s.id} · ${esc(siteName(s.site))}</div><div class="hero__p">${pill(FREQ[s.freq].t, 'info', '', true)}</div></div></div>
     ${nx ? `<div class="next next--wait"><div class="next__i">${ic('calendar', 22)}</div><div class="next__b"><div class="next__t">Next · ${esc(nx.period)}</div><div class="next__s">${fd(nx.start)} – ${fd(nx.due)}</div></div>${mng ? `<button class="btn btn--fill btn--sm" data-do="genOcc" data-arg="${s.id}">Generate</button>` : ''}</div>` : ''}
-    ${groupT('Schedule', mng ? `<button class="link" style="margin-left:auto;font-size:13px" data-do="actSchedule" data-arg="${s.id}">Edit</button>` : '')}${card('', kv([['Template', `<span class="link" data-go="#/audits/${t.id}">${esc(t.name)}</span>`], ['Site', esc(siteName(s.site))], ['Scope', 'All active items'], ['Frequency', FREQ[s.freq].t], ['Start', fd(s.start)], ['Assignee', personRow(s.assignee)], s.edited && ['Edited', `${ft2(s.edited.at)} · ${esc(nm(s.edited.by))}`]]))}
-    ${groupT('Occurrences')}${card('', occ ? `<div class="cardlist">${occ}</div>` : empty('calendar', 'None yet', '', true))}`;
+    ${card('Schedule', kv([['Template', `<span class="link" data-go="#/audits/${t.id}">${esc(t.name)}</span>`], ['Site', esc(siteName(s.site))], ['Scope', 'All active items'], ['Frequency', FREQ[s.freq].t], ['Start', fd(s.start)], ['Assignee', personRow(s.assignee)], s.edited && ['Edited', `${ft2(s.edited.at)} · ${esc(nm(s.edited.by))}`]]), mng ? `<button class="link" style="margin-left:auto;font-size:13px" data-do="actSchedule" data-arg="${s.id}">Edit</button>` : '')}
+    ${card('Occurrences', occ ? `<div class="cardlist">${occ}</div>` : empty('calendar', 'None yet', '', true))}`;
   return { title: t.name, html };
 }
 function templateDetail(id) {
   const t = templateOf(id); if (!t) return { html: empty('audits', 'Template not found') };
   const used = W().schedules.filter(s => s.template === id);
   const html = `<div class="hero"><div class="hero__b"><h2 class="hero__t">${esc(t.name)}</h2><div class="hero__s">${t.id}</div><div class="hero__p">${pill(TPL_KIND[t.kind], 'info', '', true)}</div></div></div>
-    ${groupT('Checks')}${card('', `<div class="kv">${t.checks.map((c, i) => `<div class="kv__r"><div class="kv__k" style="width:28px">${i + 1}</div><div class="kv__v">${esc(c)}</div></div>`).join('')}</div>`)}
-    ${used.length ? groupT('Schedules') + card('', `<div class="cardlist">${used.map(s => `<div class="row" data-go="#/audits/${s.id}"><div class="row__b"><div class="row__t">${esc(siteName(s.site))}</div><div class="row__s">${FREQ[s.freq].t} · ${esc(nm(s.assignee))}</div></div></div>`).join('')}</div>`) : ''}`;
+    ${card('Checks', `<div class="kv">${t.checks.map((c, i) => `<div class="kv__r"><div class="kv__k" style="width:28px">${i + 1}</div><div class="kv__v">${esc(c)}</div></div>`).join('')}</div>`)}
+    ${used.length ? card('Schedules', `<div class="cardlist">${used.map(s => `<div class="row" data-go="#/audits/${s.id}"><div class="row__b"><div class="row__t">${esc(siteName(s.site))}</div><div class="row__s">${FREQ[s.freq].t} · ${esc(nm(s.assignee))}</div></div></div>`).join('')}</div>`) : ''}`;
   return { title: t.name, html };
 }
 
@@ -508,7 +509,7 @@ VIEWS.reports = {
       const byCat = D.categories.filter(c => c.mode !== 'excluded').map(c => ({ c, n: items.filter(i => i.cat === c.id && isActive(i)).length }));
       const byCust = [...new Set(items.filter(isActive).map(i => i.custodian))].map(p => ({ p, n: items.filter(i => isActive(i) && i.custodian === p).length })).sort((a, b) => b.n - a.n);
       body = `${card('Status', `<div class="bars" style="padding:8px 20px 20px">${rep.byStatus.map(s => `<div class="bar-r"><span>${s.label}</span><div class="bar-r__t"><i style="width:${s.n / max * 100}%;background:${SOLID[STONE[s.key] || '']}"></i></div><b>${s.n}</b></div>`).join('')}</div>`)}
-        <div class="grid" style="grid-template-columns:1fr 1fr;margin-top:16px">${card('Category', kv(byCat.map(x => [`${x.c.code} · ${x.c.name}`, `<b class="num">${x.n}</b>`])))}${card('Custodian', kv(byCust.map(x => [nm(x.p), `<b class="num">${x.n}</b>`])))}</div>`;
+        <div class="grid grid--2">${card('Category', mlist(byCat.map(x => [`${x.c.code} · ${x.c.name}`, x.n])))}${card('Custodian', mlist(byCust.map(x => [nm(x.p), x.n])))}</div>`;
     }
     if (k === 'storage') body = card('', `${tbl(ih, itemRows(rep.storage), x => '#/register/' + x.id)}`);
     if (k === 'repairs') {

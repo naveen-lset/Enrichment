@@ -12,7 +12,7 @@
       // content past the screen with no scrolling ancestor
       const r = el.getBoundingClientRect();
       const inScroll = el.parentElement && el.parentElement.closest('.scroll, .sheet__page, .spot__r, .pop, .sb__nav');
-      if (!inScroll && r.height && r.bottom > scr.bottom + 2 && (el.matches('.sheet, .sheet__page, .pop, .spot, .slide, .col, .lane, .board') )) out.push(`${where}: CLIPPED ${el.className} bottom ${Math.round(r.bottom - scr.bottom)}px past screen`);
+      if (!inScroll && r.height && r.bottom > scr.bottom + 2 && (el.matches('.sheet, .sheet__page, .pop, .spot, .slide, .col, .pane, .panes, .lane, .board') )) out.push(`${where}: CLIPPED ${el.className} bottom ${Math.round(r.bottom - scr.bottom)}px past screen`);
     });
   };
   const views = ['today', 'overview', 'register/EF-0001', 'receipts/TK-2051', 'repairs', 'repairs/EF-0016', 'transfers', 'disposals/DR-0004', 'audits/AU-0002', 'audits/SCH-0001', 'reports/register', 'labels'];

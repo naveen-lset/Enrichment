@@ -11,7 +11,8 @@ const checks = ['scroll-check.js', 'layout-check.js'].map(f => [f, fs.readFileSy
 const port = 9400 + Math.floor(Math.random() * 400), prof = fs.mkdtempSync('/tmp/antz-ui-');
 const ch = spawn(CHROME, ['--headless=new', '--disable-gpu', `--remote-debugging-port=${port}`, `--user-data-dir=${prof}`, 'about:blank'], { stdio: 'ignore' });
 const sleep = ms => new Promise(r => setTimeout(r, ms));
-let ws; for (let i = 0; i < 60 && !ws; i++) { try { const p = (await (await fetch(`http://127.0.0.1:${port}/json/list`)).json()).find(x => x.type === 'page'); if (p) ws = new WebSocket(p.webSocketDebuggerUrl); } catch { } await sleep(200); }
+let ws; for (let i = 0; i < 150 && !ws; i++) { try { const p = (await (await fetch(`http://127.0.0.1:${port}/json/list`)).json()).find(x => x.type === 'page'); if (p) ws = new WebSocket(p.webSocketDebuggerUrl); } catch { } await sleep(200); }
+if (!ws) { console.log('FAIL  Chrome did not start (path: ' + CHROME + ')'); ch.kill(); process.exit(1); }
 if (ws.readyState !== 1) await new Promise(r => ws.onopen = r);   // the socket may already be open after the polling pause
 let id = 0; const pend = new Map(), errors = [];
 ws.onmessage = m => { const d = JSON.parse(m.data); if (d.id && pend.has(d.id)) { pend.get(d.id)(d); pend.delete(d.id); } if (d.method === 'Runtime.exceptionThrown') errors.push(d.params.exceptionDetails.exception?.description || d.params.exceptionDetails.text); };

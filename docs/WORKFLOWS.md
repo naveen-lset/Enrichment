@@ -173,7 +173,7 @@ Rules: one session and one task per occurrence (a repeated period, or a second o
 | FR-02, FR-03, §5.1, AC-2 | Receipt linked to ticket, workshop order, material transfer; registration with site, location, custodian | Receipts, Receive sheet | PRD + Integration | ✓ |
 | §5.1 | Partial / excess quantity needs a reason; not fit → Under assessment | Receive sheet | PRD | ✓ |
 | §5.1 | Excluded category creates no record | Receive sheet (`receiveExcluded`) | Proposed | ✓ |
-| FR-04 | Not referenced by the earlier build; check the PRD text | — | Decision | to confirm |
+| FR-04 | Record receipt, status, condition, movements, transfers, repairs, retirement and disposal with timestamps and users | Item › History (every action logs actor and time) | PRD | ✓ |
 | FR-05, §5.2, AC-3 | Move / rotate the same record; history; group split | Move sheet, History | PRD | ✓ |
 | FR-06, §9, AC-1 | Register with search, filters, status | Items | PRD | ✓ |
 | FR-07, AC-7 | No delete of tracked items | no delete anywhere; disposal only | PRD | ✓ |

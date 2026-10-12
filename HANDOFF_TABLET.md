@@ -1,6 +1,6 @@
 # Handoff — Enrichment & Furnishing tablet prototype
 
-Last session: 11 Oct 2026. Repository: https://github.com/naveen-lset/Enrichment (public) · Live: https://antz-enrichment.pages.dev
+Last session: 12 Oct 2026. Repository: https://github.com/naveen-lset/Enrichment (public) · Live: https://antz-enrichment.pages.dev
 
 ## Run
 ```sh
@@ -22,18 +22,22 @@ npm run deploy       # build dist/ and publish to Cloudflare Pages (wrangler log
 - **UI checks** (`tests/ui/`): scrolling, overflow, unbalanced markup and wrapped IDs at 1194×834, 834×1194, 744×1133 and 1180×820.
 - **Deploy**: `scripts/build.mjs` copies only the site files to `dist/`. Cloudflare Pages project `antz-enrichment`, created with `--force` so it stays on Pages, not Workers. Don't add a `wrangler.jsonc`.
 - **Old build**: the earlier phone-style build is kept as `v1.html` + `src/app/` + `flow.html`.
+- **12 Oct restyle** to match the ANTZ app (reference: https://antzdietrequestflow.vercel.app/diet-home.html?as=kitchen-head#species): one white header (title, "Viewing as" pill, site menu, bell, +); full-width filter bands (segmented tabs, 48 px search + square filter button); list rows as white cards with chevron and green selected outline; titled detail cards; #EFF5F2 page background, radius 8, 5 % black lines. Shell in `render()` / `header()` in `core.js`; style block "15 · ANTZ app style" at the end of `ipad.css`.
+- **Figma comparison (12 Oct)**: file `5iizWNcFdePpGJpenKpaTG` ("Enrichment Module Mobile App"), flows `44:374` and `553:801`. Both are user-flow diagrams for enrichment **activities** (categories, sessions, ratings, scheduling), not the PRD's item lifecycle. Touch points: inventory check, material requests, materials used, safety incidents, enclosures. Naming clashes: "category" and "assessment". 
 
 ## User's rules
-No helper text in the UI · iPad concept, not a copy · Antz colour tokens only (no hex outside `kit/tokens.css`) · Inter, radius 12, no gradients · few icons (sidebar, toolbar, none in rows or menus) · overlays blur the background · prototype-only behaviour labelled in docs, not in the UI.
+No helper text in the UI · iPad concept, not a copy · Antz colour tokens only (no hex outside `kit/tokens.css`) · Inter, radius 8 (ANTZ app), no gradients · show each fact once (no repeated text) · few icons (sidebar, toolbar, none in rows or menus) · overlays blur the background · prototype-only behaviour labelled in docs, not in the UI.
 
 ## Open questions for the owner
-- FR-04 is not traced; check the PRD text (no PDF tool on this machine).
 - The 14 business decisions in docs/WORKFLOWS.md §8.
 - The Task / Assessment / Audit links (`work.js`) need checking against the real ANTZ modules.
 - The repo and the site are public. Make them private if the kit or module details are internal.
 - Keep or remove the v1 build? Add the PRD PDF to `docs/`?
 
 ## Not done
-- The deploy-scripts commit and this handoff are **local only, not pushed**.
+- **First fix next session (user feedback 12 Oct):** remove repeated text. Same value shown twice on a screen, e.g. site in header and on Overview, item name in hero and in detail cards, tracking type in hero and Details, page title in header and list count. Show each fact once.
+- The 12 Oct restyle is **committed locally only**, and the **live site still runs the 11 Oct style** (run `npm run deploy` after review). README screenshots show the old style.
+- Activity flows from the Figma file are not built (separate module; see comparison above).
+- Commits since `aa2f276` (deploy scripts, handoffs, restyle) are **local only, not pushed**.
 - Not tested on a physical iPad. Check the Safari blur and the date picker on a device.
 - Prototype only: sample data in each browser's localStorage, no backend or auth, placeholder photos, label print logs only, CSV built in the browser.

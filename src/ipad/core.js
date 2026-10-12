@@ -69,7 +69,7 @@ const AV_N = s => [...s].reduce((n, c) => n + c.charCodeAt(0), 0) % 6;
 function av(id, size = 28) {
   const p = person(id); if (!p) return '';
   const ini = p.name.replace(/^Dr\.\s*/, '').split(' ').map(w => w[0]).slice(0, 2).join('');
-  return `<span class="av av-${AV_N(p.id)}" style="width:${size}px;height:${size}px;font-size:${Math.round(size * .4)}px">${ini}</span>`;
+  return `<span class="av" style="width:${size}px;height:${size}px;font-size:${Math.round(size * .4)}px">${ini}</span>`;
 }
 function tile(it, size = 44) {
   const off = it.status && !isActive(it);
@@ -166,42 +166,59 @@ function render() {
   const main = $('#main');
   if (main.dataset.layout !== V.layout) {
     main.dataset.layout = V.layout;
-    main.innerHTML = V.layout === 'split'
-      ? `<section class="col col--list"><nav class="bar" id="lbar"></nav><div class="scroll" id="lscroll"><div class="pad"><div id="lhead"></div><div id="lrows"></div></div></div></section>
-         <section class="col col--detail"><nav class="bar" id="dbar"></nav><div class="scroll" id="dscroll"><div class="pad" id="dbody"></div></div></section>`
-      : `<section class="col col--full"><nav class="bar" id="fbar"></nav><div class="scroll" id="fscroll"><div class="pad" id="fbody"></div></div></section>`;
-    $$('.scroll', main).forEach(bindScroll);
+    // ANTZ app shell: one white header, full-width filter bands, then the panes on the page background
+    main.innerHTML = `<header class="hdr" id="hdr"></header>` + (V.layout === 'split'
+      ? `<div class="bands"><div id="ltabs"></div><div id="lsearch"></div></div>
+         <div class="panes"><section class="pane pane--list"><div class="scroll" id="lscroll"><div class="pane__pad" id="lrows"></div></div></section>
+         <section class="pane pane--detail"><div class="scroll" id="dscroll"><div class="pane__pad" id="dbody"></div></div></section></div>`
+      : `<div class="panes"><section class="pane pane--full"><div class="scroll" id="fscroll"><div class="pane__pad pane__pad--full" id="fbody"></div></div></section></div>`);
   }
+  let right = '';
   if (V.layout === 'split') {
-    const L = V.list(r);
-    $('#lbar').innerHTML = bar({ left: sideHidden() ? sbToggle() : '', title: L.title, right: L.right || '' });
-    const hk = r.v + '|' + UI.site;
-    if ($('#lhead')._key !== hk) { paint($('#lhead'), lt(L.title, L.sub) + (L.search ? searchField(r.v, L.search) : ''), hk); }
-    else { const s = $('#lhead .lt__s'); if (s && L.sub && s.innerHTML !== L.sub) s.innerHTML = L.sub; }
+    const L = V.list(r), hk = r.v + '|' + UI.site;
+    const tabs = L.tabs ? `<div class="band band--tabs">${L.tabs}</div>` : '';
+    if ($('#ltabs')._html !== tabs) { $('#ltabs').innerHTML = tabs; $('#ltabs')._html = tabs; placeSegs($('#ltabs')); }
+    if ($('#lsearch')._key !== hk) { $('#lsearch')._key = hk; $('#lsearch').innerHTML = L.search ? `<div class="band band--search">${searchField(r.v, L.search)}${L.filter ? `<button class="sqbtn" data-do="${L.filter.do}" aria-label="Filters">${ic('setup', 20)}<span class="dot" ${L.filter.n ? '' : 'hidden'}>${L.filter.n}</span></button>` : ''}</div>` : ''; }
+    else if (L.filter) { const d = $('#lsearch .sqbtn .dot'); if (d) { d.hidden = !L.filter.n; d.textContent = L.filter.n; } }
     paint($('#lrows'), L.rows, hk, 'enter-fade');
     if (!r.id && V.autoOpen !== false) { // split view opens the first record instead of an empty pane
       const f = $('#lrows .row[data-go^="#/' + r.v + '/"]');
       if (f) { r.id = f.dataset.go.split('/')[2]; f.classList.add('on'); history.replaceState(null, '', '#/' + r.v + '/' + r.id); }
     }
     const det = V.detail(r);
-    $('#dbar').innerHTML = bar({ title: det.title || '', right: (det.right || '') + topActions() });
-    paint($('#dbody'), det.html, r.v + '/' + r.id + '/' + (det.key || ''));
+    right = L.right || '';
+    // record actions (more, export) sit in the record's own header card, not in the page header
+    let dh = det.html;
+    const hi = dh.indexOf('<div class="hero"');
+    if (det.right && hi >= 0) { const end = dh.indexOf('>', hi) + 1; dh = dh.slice(0, end) + `<div class="hero__a">${det.right}</div>` + dh.slice(end); }
+    paint($('#dbody'), dh, r.v + '/' + r.id + '/' + (det.key || ''));
   } else {
     const F = V.full(r);
-    $('#fbar').innerHTML = bar({ left: sideHidden() ? sbToggle() : '', title: F.title, right: (F.right || '') + topActions() });
+    right = F.right || '';
     paint($('#fbody'), F.html, r.v + '|' + UI.site + '|' + (F.key || ''));
   }
+  const hdr = header(V.label || '', right);
+  if ($('#hdr')._html !== hdr) { $('#hdr').innerHTML = hdr; $('#hdr')._html = hdr; placeSegs($('#hdr')); }
   paintSlide(V, r);
   if (SH) refreshSheet();
 }
+function header(title, right) {
+  const p = me(), n = notifications(UI.me).length, sites = mySites();
+  return `${sideHidden() ? sbToggle() : ''}<h1 class="hdr__t">${esc(title)}</h1><div class="hdr__sp"></div>${right}
+    <button class="asbtn" data-do="who">${ic('user', 18)}<span class="asbtn__l">Viewing as: </span><b>${esc(p.name)}</b><span class="asbtn__r"> · ${ROLE_SHORT[p.role]}</span>${ic('down', 16)}</button>
+    <button class="sitebtn" ${sites.length > 1 ? 'data-do="siteMenu"' : 'disabled'}>${ic('pin', 20)}<span>${esc(siteLabel())}</span>${sites.length > 1 ? ic('down', 16) : ''}</button>
+    <button class="icon-btn" data-do="bell" aria-label="Notifications">${ic('bell', 21)}${n ? `<span class="dot">${n}</span>` : ''}</button>
+    ${createItems().length ? `<button class="icon-btn" data-do="create" aria-label="New">${ic('plus', 23)}</button>` : ''}`;
+}
+DO.siteMenu = (a, el) => popover(el, menu([...mySites().map(s => ({ t: siteName(s), do: 'site', arg: s, on: UI.site === s })), { t: 'All sites', do: 'site', arg: 'all', on: UI.site === 'all' }]), { w: 220 });
 function bindScroll(sc) {
-  sc.addEventListener('scroll', () => sc.closest('.col').classList.toggle('scrolled', sc.scrollTop > 46), { passive: true });
+  sc.addEventListener('scroll', () => sc.closest('.col')?.classList.toggle('scrolled', sc.scrollTop > 46), { passive: true });
 }
 function searchField(v, ph) {
   return `<label class="search">${ic('search', 18)}<input type="search" placeholder="${esc(ph)}" value="${esc(UI.q[v] || '')}" data-in="q" data-v="${v}" autocomplete="off"><button class="search__x" data-do="qclear" data-arg="${v}" ${UI.q[v] ? '' : 'hidden'}>${ic('x', 12)}</button></label>`;
 }
 IN.q = (val, el) => { UI.q[el.dataset.v] = val; el.parentNode.querySelector('.search__x').hidden = !val; render(); };
-DO.qclear = v => { UI.q[v] = ''; const i = $('#lhead input'); if (i) { i.value = ''; i.focus(); } $('#lhead .search__x').hidden = true; render(); };
+DO.qclear = v => { UI.q[v] = ''; const i = $('#lsearch input'); if (i) { i.value = ''; i.focus(); } $('#lsearch .search__x').hidden = true; render(); };
 const match = (q, ...xs) => !q || xs.join(' ').toLowerCase().includes(q.trim().toLowerCase());
 
 /* slide-over (repairs board) */
@@ -229,24 +246,19 @@ function paintSidebar(r) {
     }).join('');
     return items ? `<div class="sb__group">${g ? `<div class="sb__label">${g}</div>` : ''}${items}</div>` : '';
   }).join('');
-  const p = me(), sites = mySites();
-  const siteSeg = sites.length > 1 ? seg('site', [...sites.map(s => ({ v: s, t: siteName(s).split(' ')[0] })), { v: 'all', t: 'All' }], UI.site, 'site', 'seg--block') : `<div class="sb-site">${ic('site', 16)}${esc(siteName(sites[0]))}</div>`;
   const html = `<div class="sb__in">
-    <div class="sb__head"><span class="logo">${ic('logo', 21)}</span><div class="sb__title">Enrichment</div>${UI.o === 'landscape' ? `<button class="icon-btn" data-do="sidebar" aria-label="Hide sidebar">${ic('sidebar', 21)}</button>` : ''}</div>
+    <div class="sb__head"><span class="logo">${ic('logo', 20)}</span><div class="sb__title">Enrichment</div>${UI.o === 'landscape' ? `<button class="icon-btn" data-do="sidebar" aria-label="Hide sidebar">${ic('sidebar', 21)}</button>` : ''}</div>
     <button class="sb-search" data-do="search">${ic('search', 17)}<span>Search</span></button>
-    <nav class="sb__nav">${nav}</nav>
-    <div class="sb__foot">${siteSeg}
-      <button class="me-btn" data-do="who">${av(p.id, 38)}<div style="min-width:0"><div class="me-btn__n">${esc(p.name)}</div><div class="me-btn__r">${ROLE_SHORT[p.role]}</div></div>${ic('down', 16)}</button>
-    </div></div>`;
+    <nav class="sb__nav">${nav}</nav></div>`;
   const sb = $('#sb');
   if (sb._html !== html) { sb.innerHTML = html; sb._html = html; placeSegs(sb); }
 }
-DO.site = s => { UI.site = s; save(); render(); };
+DO.site = s => { UI.site = s; closePop(); save(); render(); };
 DO.who = (a, el) => {
   const order = ['sup', 'afm', 'bio', 'ws', 'mgmt', 'admin'];
   const ppl = D.people.slice().sort((x, y) => order.indexOf(x.role) - order.indexOf(y.role));
   popover(el, `<div class="pop__h">Sign in as</div>${ppl.map(p => `<button class="mi ${p.id === UI.me ? 'on' : ''}" data-do="signIn" data-arg="${p.id}">${av(p.id, 32)}<span><span>${esc(p.name)}</span><span class="mi__s">${ROLE_SHORT[p.role]}${p.sections.length ? ' · ' + p.sections.map(secName).join(', ') : ''}</span></span>${p.id === UI.me ? `<span class="mi__e">${ic('check', 18)}</span>` : ''}</button>`).join('')}
-    <div class="mi-sep"></div><button class="mi" data-do="guide">${ic('book', 20)}Demo guide</button><button class="mi danger" data-do="reset">${ic('reset', 20)}Reset demo data</button>`, { side: 'top', w: 320 });
+    <div class="mi-sep"></div><button class="mi" data-do="guide">Demo guide</button><button class="mi danger" data-do="reset">Reset demo data</button>`, { w: 320 });
 };
 DO.signIn = id => { UI.me = id; UI.site = person(id).sites[0]; closePop(); save(); go('#/today'); toast(`Signed in as ${nm(id)}`, { icon: 'user' }); };
 DO.reset = () => { closePop(); try { localStorage.removeItem(STORE); } catch (e) { /* ignore */ } fresh(); save(); go('#/today'); toast('Demo data reset', { icon: 'reset' }); };
