@@ -431,3 +431,34 @@ The owner supplied `Components.md` (the Antz procurement tablet kit). The app no
 | Sheet, SideSheet, PickRow, Field / TextIn / Choice / Stepper2 / PickField | Every form (bottom sheet with grab handle, title, close, footer), Filters (side sheet), pickers, Viewing as (RoleSheet) |
 
 Rules kept from the kit: no helper text in screens, one fact once (the decision reason shows in one place), one main action per footer, 44–48 px targets, tokens only, native tablet pattern (no frame).
+
+## 16 · Item register: product definitions, receipt, usable life, assignment (13 Oct)
+
+Built from the *Enrichment & Furnishing Management — Actual Business Requirements* brief (§1–9; the brief's §10 was cut off and is still to come). Rules: `src/model/register.js` · screens and sheets: `src/ipad/register-views.js` · tests: `tests/register.test.mjs` (9). No change to `model.js`: receipt, movement and custodian rules are reused and wrapped.
+
+**Reused, not rebuilt:** tickets with their workshop and material-transfer references (the existing request / approval / procurement / transfer flow ends at a dispatched ticket), `receive()` and the category tracking modes (A, B individual · C group · D not tracked), `nextId()` IDs (`EF-` individual, `EB-` group, `EP-` product), the custodian, `move()`, the PRD statuses and conditions, `flagIssue()` and the repair flow, notifications, the lifecycle timeline.
+
+**Owner decisions (13 Oct, the defaults proposed in the plan):**
+
+| # | Decision | Implemented as |
+|---|---|---|
+| D-R1 | The brief's *Unavailable* status | A filter covering Under assessment, Under repair, In transit and Missing. No new stored status. |
+| D-R2 | Start of the usable life | Received date (`lifeStart`). |
+| D-R3 | Due-soon window | 30 days, `D.config.reviewSoonDays` (Reminders). |
+| D-R4 | Where receiving lives | Requests › **To receive** (supervisor, site manager) and Home › To receive. No new tab. |
+| D-R5 | Who assigns for use | Supervisor and site manager directly (**Assign for use**); a biologist through the existing movement request. |
+| D-R6 | Item with no custodian | *Awaiting assignment*: it cannot go into an enclosure (assignment, movement or movement request) until a custodian is assigned. |
+
+| Requirement | Where | Rule |
+|---|---|---|
+| Product definition | `D.products`; Enrichments › group header › product panel; **Edit** (supervisor, site manager) | name, enrichment type (`ACT_TYPE`), category (tracking mode), material (`D.config.materials`), description, default usable life, log. One name once. The category cannot change once items exist. |
+| Physical item | item panel | unique ID, product, material, ticket, material transfer, received date and condition (`receivedCond`), location, custodian, usable life, review date, condition, status, history. |
+| Receipt | Requests › To receive › delivery › **Receive** | `receiveDelivery()`: product confirmed from the ticket, picked, or defined once at receipt; quantity and discrepancy; condition (not fit → Under assessment, never Available); location; custodian or *Assign later*; item life override with a reason. A not-tracked category is confirmed with no record. The requester is notified; so is a custodian other than the receiver. |
+| Custodian | item › Custodian › Assign / Change; Home task *Assign custodian* | `reassignCustodian()` (Phase 1), history *Custodian assigned* or *Custodian changed* (from, to, actor, time), notification. |
+| Usable life | item › **Usable life**; product › Edit | product default or item override (`setItemLife`, reason required). Units days, weeks, months, years; calendar months (31 Jan + 1 month = 28 Feb). A product edit moves the dates of items without an override. |
+| Review indicator | item cards, item panel, filter, Home *Life reviews*, notifications | `reviewState()`: in life · due soon · overdue · replacement needed · not set. Never changes status or condition. |
+| Life review | item › **Life review** | `recordReview()`: *Still fit* (next review date after today) or *Replace* (reason). Custodian, or supervisor / site manager. Damage goes through Report issue. |
+| Search | Enrichments | product name, ID, product ID, material, location, site, custodian, type, ticket, species, animal. Results grouped by product definition (name · type · material · life · tracking · available count), items under it, available first. Filters: status (with Unavailable, Disposed / retired), condition, usable life, material, custodian (with Awaiting assignment), location, species, animal; site from the header. |
+| Assign for use | item › **Assign for use** | `assignForUse()`: an enclosure of the item's section (move() rules: same record, cleared for animal use, no open disposal), optional animals living there (`item.use`), note. History *Moved* with the previous location. Group items split as before. |
+
+**Open points:** a real product master and material list must come from ANTZ (the demo builds both from sample data, with sample lives); whether an approved *New product* proposal should create the definition (today it is defined at receipt); who may edit product definitions (prototype: supervisor, site manager); replacement after *Replace* uses the existing product request or disposal, with no link between them; the brief's §10 (permissions and business rules) is still to be received.

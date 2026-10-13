@@ -1,6 +1,7 @@
 // src/model/products.js — Enrichments Phase 1: the site's enrichment products and the request workflow around them. No DOM.
-// A product is a record of the item register (model.js); this file adds no second inventory. It adds:
-//   · the enrichment type of a product (the five types are ACT_TYPE in activity.js);
+// A physical item is a record of the item register (model.js); this file adds no second inventory. It adds:
+//   · product definitions (D.products): one per kind of product, with its enrichment type (ACT_TYPE in activity.js), category
+//     (and so its tracking mode), material and default usable life; each item points to its product (item.product);
 //   · requests: existing product · new product proposal · same-site movement · inter-site transfer,
 //     with the agreed statuses Draft → Pending approval → Approved | Rejected → Completed;
 //   · custodian reassignment (direct, no approval), written to the item history;
@@ -15,16 +16,22 @@ const REQ_KIND = { existing: 'Product request', proposal: 'New product', move: '
 // biologists request; the supervisor of the section or the site manager (the site-scoped AFM role) reviews; custodian change is direct
 Object.assign(CAN, { prodRequest: ['bio'], prodReview: ['sup', 'afm', 'admin'], prodCustodian: ['bio', 'sup', 'afm', 'admin'] });
 
-const EN = () => D.enr || (D.enr = { types: {}, requests: [], events: [] });
-const productType = it => (it && EN().types[it.name]) || '';
-const enrProducts = () => D.items.filter(it => isActive(it) && productType(it));
+const EN = () => D.enr || (D.enr = { requests: [], events: [] });
+const prodOf = id => (D.products || []).find(p => p.id === id);
+const productOf = it => (it && it.product && prodOf(it.product)) || null;
+const productType = it => (productOf(it) || {}).type || '';
+// the enrichment items: every record that belongs to a product definition (active only; enrItems(true) adds retired ones)
+const enrItems = (all = false) => D.items.filter(it => (all || isActive(it)) && productOf(it));
+const enrProducts = () => enrItems();
 const ereqOf = id => EN().requests.find(r => r.id === id);
 const reqTitle = r => r.kind === 'proposal' ? r.name : (itemOf(r.item) || {}).name || '';
 
 /* ---------- associations: the enclosure a product is in, and the animals (and so the species) living there ---------- */
 function productAssoc(it) {
   const loc = it.status !== 'transit' && locOf(it.loc)?.kind === 'enclosure' ? it.loc : '';
-  const animals = loc ? A().animals.filter(a => a.loc === loc).map(a => a.id) : [];
+  // the animals the item was assigned to (assignForUse, register.js) while it stays in that enclosure; otherwise all that live there
+  const use = it.use && it.use.loc === loc && it.use.animals.length ? it.use.animals : null;
+  const animals = loc ? use || A().animals.filter(a => a.loc === loc).map(a => a.id) : [];
   return { loc, animals, species: [...new Set(animals.map(a => animalOf(a).species))] };
 }
 // the activities that use a product (by name), with their type-specific details
@@ -82,7 +89,7 @@ function checkRequest(byId, f, selfId = '') {
     need(f.description, 'Write the product description.');
     need(f.justification, 'Write why the product is needed.');
     need(f.site, 'Pick the site.');
-    if (enrProducts().some(it => it.name.toLowerCase() === f.name.toLowerCase())) fail('This product is already in the listing. Request it instead.');
+    if ((D.products || []).some(p => p.name.toLowerCase() === f.name.toLowerCase())) fail('This product is already in the listing. Request it instead.');
     reviewersOf(f).length || fail('No supervisor or site manager can review this request.');
     return;
   }
@@ -244,10 +251,10 @@ function reassignCustodian(itemId, byId, o = {}) {
   const to = person(need(o.to, 'Pick the new custodian.'));
   if (!to || !custodianChoices(it).some(p => p.id === to.id)) fail('Pick a biologist, supervisor or site manager of this site.');
   if (to.id === it.custodian) fail('This person is already the custodian.');
-  const from = it.custodian;
+  const from = it.custodian, act = from ? 'Custodian changed' : 'Custodian assigned';   // '' = awaiting assignment since receipt
   it.custodian = to.id;
-  log(it, byId, 'Custodian changed', { from: person(from).name, to: to.name, note: trimmed(o.note) });
-  notifyPeople([to.id, from].filter(x => x !== byId), 'Custodian changed', `${it.name} · ${it.id} · ${person(from).name} → ${to.name}`, '#/enrichments/' + it.id);
+  log(it, byId, act, { from: from ? person(from).name : '', to: to.name, note: trimmed(o.note) });
+  notifyPeople([to.id, from].filter(x => x && x !== byId), act, `${it.name} · ${it.id} · ${from ? person(from).name + ' → ' : ''}${to.name}`, '#/enrichments/' + it.id);
   return it.id;
 }
 
@@ -281,10 +288,11 @@ function productTasks(byId) {
 }
 
 /* ---------- lifecycle timeline: the item's own history and the requests about it, nothing else ---------- */
-const LC_TYPE = { movement: 'Movement', storage: 'Storage', condition: 'Condition', repair: 'Repair', transfer: 'Transfer', custodian: 'Custodian', request: 'Request', other: 'Other' };
+const LC_TYPE = { receipt: 'Receipt', movement: 'Movement', storage: 'Storage', condition: 'Condition', repair: 'Repair', transfer: 'Transfer', custodian: 'Custodian', life: 'Usable life', request: 'Request', other: 'Other' };
 const LC_ACT = { Moved: 'movement', 'Quantity split': 'movement', 'Split from batch': 'movement', 'Condition flagged': 'condition', 'Condition changed': 'condition', 'Assessment requested': 'condition',
   'Animal use verified': 'condition', 'Repairability assessed': 'repair', 'Repair approved': 'repair', 'Repair completed': 'repair', 'Transfer dispatched': 'transfer', 'Transfer received': 'transfer',
-  'Transfer completed by exception': 'transfer', 'Custodian changed': 'custodian' };
+  'Transfer completed by exception': 'transfer', 'Custodian changed': 'custodian', 'Custodian assigned': 'custodian', Received: 'receipt', Registered: 'receipt',
+  'Life reviewed': 'life', 'Usable life changed': 'life' };
 function historyType(h) {
   if (h.act !== 'Status changed') return [LC_ACT[h.act] || 'other', h.act];
   if ([h.from, h.to].some(x => x === STATUS.assessment || x === STATUS.repair)) return ['repair', h.act];   // repair steps first: a repair can end in a store
@@ -321,8 +329,10 @@ function noRepairCheck() {
 }
 
 /* ---------- demo data (played through the rules above) ---------- */
-// The register has no enrichment-type field. A product takes the type of the activities that use it; SAMPLE_TYPES fills the
-// rest for the demo only. Products with no type (transport cages, crates) are equipment and are not listed in Enrichments.
+// The sample register has no product master. The demo builds one definition per product name: the type of the activities that
+// use it (SAMPLE_TYPES fills the rest), the category of its records, and a sample material and usable life (SAMPLE_SPEC).
+// These are demonstration values only, never rule defaults. Names with no type (transport cages, crates) are equipment and
+// get no definition, so they are not listed in Enrichments.
 const SAMPLE_TYPES = {
   social: ['Rope climbing net', 'Hanging tyre swing', 'Swing perch', 'Bathing tray', 'Mirror toy', 'Rubbing post'],
   cognitive: ['Treat dispenser', 'Exercise wheel', 'Pool float drum'],
@@ -330,10 +340,33 @@ const SAMPLE_TYPES = {
   food: ['Stainless steel feeder', 'Forage box', 'Feeding pole', 'Tyre feeder', 'Browse frame', 'Lick-block holder'],
   sensory: ['Scent box'],
 };
+// name: [material, usable life in months (0 = not set)]
+const SAMPLE_SPEC = {
+  'Bamboo poles': ['Bamboo', 0], 'Stainless steel feeder': ['Metal', 24], 'Wooden nest box': ['Wood', 4], 'Puzzle feeder ball': ['Plastic', 6],
+  'Climbing frame': ['Wood', 12], 'Boomer ball': ['Plastic', 12], 'Log pile': ['Wood', 3], 'Standard perches': ['Wood', 4], 'Scent box': ['Wood', 3],
+  'Fire-hose hammock': ['Fabric', 6], 'Wooden platform': ['Wood', 6], 'Hanging tyre swing': ['Rubber', 12], 'Rope climbing net': ['Rope', 3],
+  'Forage box': ['Wood', 6], 'Mirror panel': ['Metal', 12], 'Bamboo foraging tube': ['Bamboo', 2], 'Treat dispenser': ['Plastic', 12], 'Dig box': ['Wood', 6],
+  'Hide log': ['Wood', 6], 'Exercise wheel': ['Metal', 24], 'Scatter feeder tray': ['Metal', 12], 'Scratching post': ['Wood', 6], 'Feeding pole': ['Metal', 12],
+  'Meat bungee': ['Rubber', 3], 'Pool float drum': ['Plastic', 12], 'Scent sacks': ['Fabric', 1], 'Mirror toy': ['Metal', 12], 'Swing perch': ['Wood', 6],
+  'Foraging cup set': ['Plastic', 6], 'Nest platform': ['Wood', 6], 'Bathing tray': ['Metal', 12], 'Hay net': ['Rope', 3], 'Lick-block holder': ['Metal', 24],
+  'Rubbing post': ['Wood', 6], 'Tyre feeder': ['Rubber', 12], 'Browse frame': ['Wood', 6], 'Recovery perch': ['Wood', 6], 'Soft hide': ['Fabric', 3], 'Heat lamp guard': ['Metal', 24],
+};
 function productSeed() {
-  const at = setNow, en = EN(), sample = {};
+  const at = setNow, sample = {};
   Object.entries(SAMPLE_TYPES).forEach(([t, names]) => names.forEach(n => { sample[n] = t; }));
-  [...new Set(D.items.map(i => i.name))].forEach(n => { const a = A().activities.find(x => x.materials.includes(n)); const t = a ? a.type : sample[n]; if (t) en.types[n] = t; });
+  D.config.materials = ['Wood', 'Metal', 'Bamboo', 'Rope', 'Plastic', 'Rubber', 'Fabric'];   // configuration, editable like the categories
+  D.config.reviewSoonDays = 30;                                                              // Reminders: life review due soon
+  D.products = [];
+  [...new Set(D.items.map(i => i.name))].forEach(n => {
+    const a = A().activities.find(x => x.materials.includes(n)), t = a ? a.type : sample[n];
+    if (!t) return;
+    const [material, months] = SAMPLE_SPEC[n] || ['', 0];
+    const p = { id: nextId('EP'), name: n, type: t, cat: D.items.find(i => i.name === n).cat, material, description: '', life: months ? { n: months, unit: 'months' } : null,
+      log: [{ at: '2026-06-01T09:00', by: 'P-MEERA', act: 'Defined', note: '' }] };
+    D.products.push(p);
+    D.items.filter(i => i.name === n).forEach(i => { i.product = p.id; });
+    D.tickets.filter(tk => tk.name === n).forEach(tk => { tk.product = p.id; });
+  });
   const find = (name, ok = () => true) => (D.items.find(i => i.name === name && isActive(i) && ok(i)) || {}).id;
   const stored = i => i.status === 'storage';
   const req = (t, o, draft) => { at(t); return createRequest('P-ANJ', o, draft); };

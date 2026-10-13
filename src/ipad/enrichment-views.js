@@ -31,57 +31,75 @@ function reqBand(r) {
 }
 const dueTag = due => { const d = dueOf(due); return d ? Tag(d.t, d.c === 'late' ? 'bad' : d.c === 'soon' ? 'wait' : 'none') : ''; };
 
-/* ============ Products ============ */
-const ENR_F = { st: '', cust: '', sp: '', an: '', loc: '' };
+/* ============ Products: each product definition with its physical items ============ */
+const ENR_F = { st: '', cond: '', rv: '', mat: '', cust: '', loc: '', sp: '', an: '' };
 const enrFilter = () => Object.assign({}, ENR_F, UI.f.enr);
+// status filter: the stored statuses, plus Unavailable (any state that stops normal use) and Disposed / retired (records kept)
+const ST_GROUP = { unavail: ['assessment', 'repair', 'transit', 'missing'], retired: ['retired', 'scrapped'] };
+const ST_LABEL = k => k === 'unavail' ? 'Unavailable' : k === 'retired' ? 'Disposed / retired' : STATUS[k];
+const stOk = (it, st) => !st || (ST_GROUP[st] ? ST_GROUP[st].includes(it.status) : it.status === st);
 function enrTokens(f) {
-  return [f.st && ['st', STATUS[f.st]], f.cust && ['cust', nm(f.cust)], f.sp && ['sp', speciesOf(f.sp)?.name], f.an && ['an', animalOf(f.an)?.name], f.loc && ['loc', locName(f.loc)]].filter(Boolean);
+  return [f.st && ['st', ST_LABEL(f.st)], f.cond && ['cond', COND[f.cond]], f.rv && ['rv', REVIEW[f.rv]], f.mat && ['mat', f.mat], f.cust && ['cust', f.cust === '__none' ? 'Awaiting assignment' : nm(f.cust)],
+    f.loc && ['loc', locName(f.loc)], f.sp && ['sp', speciesOf(f.sp)?.name], f.an && ['an', animalOf(f.an)?.name]].filter(Boolean);
 }
 function enrMatch(it, f, q) {
-  const a = productAssoc(it);
-  return (!f.st || it.status === f.st) && (!f.cust || it.custodian === f.cust) && (!f.sp || a.species.includes(f.sp)) && (!f.an || a.animals.includes(f.an)) && (!f.loc || it.loc === f.loc)
-    && match(q, it.id, it.name, locName(it.loc), nm(it.custodian), ACT_TYPE[productType(it)], spNames(a.species).join(' '), anNames(a.animals).join(' '));
+  const a = productAssoc(it), p = productOf(it);
+  return stOk(it, f.st) && (!f.cond || it.cond === f.cond) && (!f.rv || reviewState(it) === f.rv) && (!f.mat || materialOf(it) === f.mat)
+    && (!f.cust || (f.cust === '__none' ? !it.custodian : it.custodian === f.cust)) && (!f.loc || it.loc === f.loc) && (!f.sp || a.species.includes(f.sp)) && (!f.an || a.animals.includes(f.an))
+    && match(q, it.id, it.name, p.id, materialOf(it), locName(it.loc), siteName(it.site), inCharge(it), ACT_TYPE[p.type], it.ticket, spNames(a.species).join(' '), anNames(a.animals).join(' '));
 }
-const enrBase = (f = enrFilter()) => enrProducts().filter(inSite).filter(it => enrMatch(it, f, UI.q.enrichments || ''));
-// a product as a record card: glyph tile, name, ID and place, the animals there, type, and the status band with the custodian
-const productCard = (it, on, withType) => RecordCard({ icon: glyphOf(it.name), heading: it.name + (it.mode === 'batch' ? ` × ${it.qty}` : ''), meta: `${it.id} • ${esc(it.status === 'transit' ? 'In transit' : locName(it.loc))}`,
-  text: esc(assocLine(productAssoc(it))), chips: withType ? Tag(ACT_TYPE[productType(it)], 'info') : '', band: ST_BAND[it.status], label: STATUS[it.status], when: esc(nm(it.custodian)), go: '#/enrichments/' + it.id, on });
-const productRow = (it, withType) => `<button class="ak-row" data-go="#/enrichments/${it.id}">${IconTile(glyphOf(it.name), { size: 36 })}<span class="ak-row__b"><span class="ak-row__t">${esc(it.name)}${it.mode === 'batch' ? ` × ${it.qty}` : ''}</span><span class="ak-row__s">${it.id} • ${esc(it.status === 'transit' ? 'In transit' : locName(it.loc))} • ${esc(nm(it.custodian))}</span></span><span class="ak-row__e">${withType ? Tag(ACT_TYPE[productType(it)], 'info') : ''}${statusTag(it)}</span><span class="ak-row__chev">${ic('right', 18)}</span></button>`;
+const enrBase = (f = enrFilter()) => enrItems(f.st === 'retired').filter(inSite).filter(it => enrMatch(it, f, UI.q.enrichments || ''));
+// groups: products with an item available for use first, then by name; inside a group the available items first
+function productGroups(list) {
+  const m = new Map();
+  list.forEach(it => { if (!m.has(it.product)) m.set(it.product, []); m.get(it.product).push(it); });
+  return [...m].map(([pid, items]) => ({ p: prodOf(pid), items: items.sort(byAvail), avail: items.filter(availableForUse).length }))
+    .sort((x, y) => (y.avail > 0) - (x.avail > 0) || x.p.name.localeCompare(y.p.name));
+}
+// a product as one card: its definition in the header (tap → product), then its physical items as compact rows (tap → item)
+const PC_ROWS = 5;
+const itemLine = it => `<button class="ak-irow" data-go="#/enrichments/${it.id}"><span class="ak-irow__id">${it.id}${it.mode === 'batch' ? ` × ${it.qty}` : ''}</span><span class="ak-irow__s">${esc(placeOf(it))} · ${esc(inCharge(it))}</span><span class="ak-irow__e">${reviewTag(it, true)}${statusTag(it)}</span></button>`;
+const productBlock = (g, withType) => `<section class="ak-pc"><button class="ak-pc__h" data-go="#/enrichments/${g.p.id}">${IconTile(glyphOf(g.p.name), { size: 44 })}<span class="ak-pc__b"><span class="ak-pc__t">${esc(g.p.name)}</span><span class="ak-pc__s">${esc([withType && ACT_TYPE[g.p.type], g.p.material, lifeText(g.p.life), trackText(g.p)].filter(Boolean).join(' · '))}</span></span>${g.avail ? Tag(`${g.avail} available`, 'good') : Tag('None available', 'none')}<span class="ak-row__chev">${ic('right', 18)}</span></button>
+  <div class="ak-pc__rows">${g.items.slice(0, PC_ROWS).map(itemLine).join('')}</div>${g.items.length > PC_ROWS ? `<button class="ak-pc__more" data-go="#/enrichments/${g.p.id}">Show all ${g.items.length}</button>` : ''}</section>`;
+// list layout: every item on one line, with its product
+const itemFlat = it => `<button class="ak-row" data-go="#/enrichments/${it.id}"><span class="ak-row__b"><span class="ak-row__t">${esc(it.name)}${it.mode === 'batch' ? ` × ${it.qty}` : ''}</span><span class="ak-row__s">${it.id} • ${esc(placeOf(it))} • ${esc(inCharge(it))}</span></span><span class="ak-row__e">${reviewTag(it, true)}${statusTag(it)}</span><span class="ak-row__chev">${ic('right', 18)}</span></button>`;
 
 VIEWS.enrichments = {
   label: 'Enrichments', hdr: 'Enrichments', icon: 'layers', layout: 'full',
   full(r) {
     const f = enrFilter(), type = UI.tab.enr || 'all', view = enrView(), base = enrBase(f), list = base.filter(it => type === 'all' || productType(it) === type);
-    const tokens = enrTokens(f), withType = type === 'all';
-    list.sort((x, y) => x.name.localeCompare(y.name) || x.id.localeCompare(y.id));
-    const body = !list.length ? Card(EmptyState(UI.q.enrichments || tokens.length ? 'No matching products' : 'No products', '', 'layers', tokens.length ? Btn('Clear filters', { small: true, do: 'enrClear' }) : ''))
-      : view === 'list' ? Card(list.map(it => productRow(it, withType)).join(''), 'ak-list') : `<div class="ak-grid ak-grid--3">${list.map(it => productCard(it, r.id === it.id, withType)).join('')}</div>`;
+    const tokens = enrTokens(f), withType = type === 'all', groups = productGroups(list);
+    const body = !groups.length ? Card(EmptyState(UI.q.enrichments || tokens.length ? 'No matching items' : 'No items', '', 'layers', tokens.length ? Btn('Clear filters', { small: true, do: 'enrClear' }) : ''))
+      : view === 'list' ? Card(groups.flatMap(g => g.items).map(itemFlat).join(''), 'ak-list') : `<div class="ak-pcs">${groups.map(g => productBlock(g, withType)).join('')}</div>`;
     return { title: 'Enrichments', key: type + view, fab: newFab(),
       tabs: CountTabs([{ key: 'all', label: 'All', count: base.length }, ...ENR_TYPES.map(t => ({ key: t, label: ACT_TYPE[t], count: base.filter(it => productType(it) === t).length }))], type, 'enrType'),
-      listTitle: 'Products', search: 'Search product, ID, species or custodian', filter: { do: 'enrFilter', n: tokens.length }, tools: ViewSwitch(view, 'enrView'), searchKey: view,
+      listTitle: 'Products', search: 'Search product, ID, material, place or custodian', filter: { do: 'enrFilter', n: tokens.length }, tools: ViewSwitch(view, 'enrView'), searchKey: view,
       html: (tokens.length ? `<div class="ak-tokens">${Chips(tokens.map(([k, t]) => ({ key: k, label: t + ' ✕' })), '', 'enrUnset')}</div>` : '') + body };
   },
-  slide(r) { return r.id ? productPanel(r.id) : null; },
+  slide(r) { return !r.id ? null : r.id.startsWith('EP-') ? productDefPanel(r.id) : productPanel(r.id); },
 };
 VIEWS.enrichments.sub = siteSub;
 DO.enrType = t => { UI.tab.enr = t; render(); };
 DO.enrUnset = k => { UI.f.enr = Object.assign(enrFilter(), { [k]: '' }); render(); };
 DO.enrClear = () => { UI.f.enr = {}; render(); };
 DO.enrFilter = () => {
-  const all = enrProducts().filter(inSite), assoc = all.map(productAssoc);
-  const sts = Object.keys(STATUS).filter(k => all.some(it => it.status === k));
-  const custs = [...new Set(all.map(it => it.custodian))];
+  const all = enrItems(true).filter(inSite), act = all.filter(isActive), assoc = act.map(productAssoc);
+  const sts = Object.keys(STATUS).filter(k => !ST_GROUP.retired.includes(k) && act.some(it => it.status === k)).concat(act.some(it => ST_GROUP.unavail.includes(it.status)) ? ['unavail'] : [], all.some(it => !isActive(it)) ? ['retired'] : []);
+  const conds = Object.keys(COND).filter(k => act.some(it => it.cond === k)), rvs = ['soon', 'due', 'replace', 'none'].filter(k => act.some(it => reviewState(it) === k));
+  const mats = (D.config.materials || []).filter(m => act.some(it => materialOf(it) === m)), custs = [...new Set(act.map(it => it.custodian).filter(Boolean))];
   const sps = [...new Set(assoc.flatMap(a => a.species))].map(speciesOf), ans = [...new Set(assoc.flatMap(a => a.animals))].map(animalOf);
-  const encl = [...new Set(assoc.map(a => a.loc).filter(Boolean))].map(locOf);
+  const locs = [...new Set(act.map(it => it.loc))].map(locOf).filter(Boolean);
   sheet({
     title: 'Filters', left: 'enrReset',
-    body: f => fg('Status', [cOpts('', 'st', f, [['', 'Any'], ...sts.map(k => [k, STATUS[k]])])])
-      + fg('Who and where', [cNav('Custodian', f.cust ? nm(f.cust) : 'Anyone', 'cust'), cNav('Species', f.sp ? speciesOf(f.sp).name : 'Any', 'sp'), cNav('Animal', f.an ? animalOf(f.an).name : 'Any', 'an'), cNav('Enclosure', f.loc ? locName(f.loc) : 'Any', 'loc')]),
+    body: f => fg('Status', [cOpts('', 'st', f, [['', 'Any'], ...sts.map(k => [k, ST_LABEL(k)])])]) + fg('Condition', [cOpts('', 'cond', f, [['', 'Any'], ...conds.map(k => [k, COND[k]])])])
+      + fg('Usable life', [cOpts('', 'rv', f, [['', 'Any'], ...rvs.map(k => [k, REVIEW[k]])])])
+      + fg('What, who and where', [cNav('Material', f.mat || 'Any', 'mat'), cNav('Custodian', f.cust === '__none' ? 'Awaiting assignment' : f.cust ? nm(f.cust) : 'Anyone', 'cust'), cNav('Location', f.loc ? locName(f.loc) : 'Any', 'loc'), cNav('Species', f.sp ? speciesOf(f.sp).name : 'Any', 'sp'), cNav('Animal', f.an ? animalOf(f.an).name : 'Any', 'an')]),
     pickers: {
-      cust: () => pickerPage({ title: 'Custodian', key: 'cust', options: [{ v: '', t: 'Anyone' }, ...peopleOpts(p => custs.includes(p.id)).map(o => Object.assign(o, { tile: Avatar(o.v, 32) }))] }),
+      mat: () => pickerPage({ title: 'Material', key: 'mat', options: [{ v: '', t: 'Any' }, ...mats.map(m => ({ v: m, t: m }))] }),
+      cust: () => pickerPage({ title: 'Custodian', key: 'cust', options: [{ v: '', t: 'Anyone' }, ...(act.some(it => !it.custodian) ? [{ v: '__none', t: 'Awaiting assignment' }] : []), ...peopleOpts(p => custs.includes(p.id)).map(o => Object.assign(o, { tile: Avatar(o.v, 32) }))] }),
+      loc: () => pickerPage({ title: 'Location', key: 'loc', search: true, options: [{ v: '', t: 'Any' }, ...locs.map(l => ({ v: l.id, t: l.name, s: `${secName(l.section)} · ${siteName(l.site)}`, group: l.kind === 'enclosure' ? 'Enclosures' : 'Stores' }))] }),
       sp: () => pickerPage({ title: 'Species', key: 'sp', search: true, options: [{ v: '', t: 'Any' }, ...sps.map(sp => ({ v: sp.id, t: sp.name, s: sp.sci }))] }),
       an: f => pickerPage({ title: 'Animal', key: 'an', search: true, options: [{ v: '', t: 'Any' }, ...ans.filter(a => !f.sp || a.species === f.sp).map(a => ({ v: a.id, t: a.name, s: `${a.id} · ${locName(a.loc)}`, group: speciesOf(a.species).name }))] }),
-      loc: () => pickerPage({ title: 'Enclosure', key: 'loc', options: [{ v: '', t: 'Any' }, ...encl.map(l => ({ v: l.id, t: l.name, s: secName(l.section) }))] }),
     },
     done: { label: f => `Show ${enrBase(f).filter(it => (UI.tab.enr || 'all') === 'all' || productType(it) === UI.tab.enr).length}`, run: f => { UI.f.enr = Object.assign({}, f); return ''; } },
   }, enrFilter(), { side: true });
@@ -99,12 +117,18 @@ function productActions(it) {
   if (r && r.state === 'assessment' && r.bio !== 'pending' && can(UI.me, 'decide', it)) add('Decide', { do: 'actDecide', arg: it.id });
   if (r && r.state === 'approved' && can(UI.me, 'repairStart', it)) add('Start repair', { do: 'actStartRepair', arg: it.id });
   if (r && r.state === 'repair' && can(UI.me, 'repairDone', it)) add('Complete repair', { do: 'actCompleteRepair', arg: it.id });
+  const custOk = isActive(it) && it.status !== 'transit' && can(UI.me, 'prodCustodian', it), lifeOk = isActive(it) && it.status !== 'transit' && canLife(UI.me, it);
+  if (!it.custodian && custOk) add('Assign custodian', { do: 'enrCustodian', arg: it.id });
+  if (lifeOk && ['soon', 'due', 'replace'].includes(reviewState(it))) add('Life review', { do: 'enrLifeReview', arg: it.id });
+  if (!canRequest() && can(UI.me, 'move', it) && MOVABLE.includes(it.status) && it.custodian && usableForAnimals(it) && !it.disposal && !openMoveOf(it.id)) add('Assign for use', { do: 'enrAssign', arg: it.id });
   const mv = MOVABLE.includes(it.status) && !it.disposal && !openMoveOf(it.id), st = storeAction(it);
   if (canRequest() && !['transit', 'missing'].includes(it.status)) add('Request', { do: 'enrRequest', arg: it.id });
   if (st) add(st.kind === 'store' ? 'Store' : 'Return to use', { do: st.do, arg: `${it.id}|${st.kind}` });
   if (mv && (canRequest() || can(UI.me, 'move', it))) add('Move', { do: canRequest() ? 'enrMove' : 'actMove', arg: it.id });
   if (mv && (canRequest() ? D.sites.some(s => s.id !== it.site) : can(UI.me, 'transfer', it))) add('Transfer', { do: canRequest() ? 'enrTransfer' : 'actTransfer', arg: it.id });
   if (MOVABLE.includes(it.status) && can(UI.me, 'flag', ['bio', 'ws'].includes(role()) ? null : it)) add('Report issue', { do: 'actFlag', arg: it.id + '|enr' });
+  if (lifeOk && !['soon', 'due', 'replace'].includes(reviewState(it))) add('Life review', { do: 'enrLifeReview', arg: it.id });
+  if (lifeOk) add('Usable life', { do: 'enrLife', arg: it.id });
   return out;
 }
 // Store / Return to use: offered when the item can move and its section has a location of the other kind
@@ -113,7 +137,7 @@ function storeAction(it) {
   const kind = it.status === 'storage' ? 'use' : 'store';
   if (!D.locations.some(l => l.section === it.section && l.id !== it.loc && (kind === 'store' ? l.kind === 'store' : l.kind !== 'store'))) return null;
   if (canRequest()) return { do: 'enrMove', kind };
-  return can(UI.me, 'move', it) ? { do: 'actMove', kind } : null;
+  return can(UI.me, 'move', it) && kind === 'store' ? { do: 'actMove', kind } : null;   // into use: Assign for use
 }
 // the step tracker of what is in progress on the product: a transfer, or an issue and its repair
 function productSteps(it) {
@@ -134,18 +158,26 @@ function productPanel(id) {
   const lc = UI.f.enrLc && UI.f.enrLc.id === it.id ? UI.f.enrLc : { type: '', all: false };
   const a = productAssoc(it), r = it.repair, steps = productSteps(it), acts = productActions(it);
   const reqs = EN().requests.filter(x => x.item === it.id && (x.by === UI.me || reviewable(x))).sort((x, y) => y.at.localeCompare(x.at));
-  const custOk = isActive(it) && it.status !== 'transit' && can(UI.me, 'prodCustodian', it);
-  const head = `<div class="ak-head">${IconTile(glyphOf(it.name), { size: 56, tone: 'brand' })}<div class="ak-head__b"><div class="ak-head__t">${esc(it.name)}${it.mode === 'batch' ? ` × ${it.qty}` : ''}</div><div class="ak-head__x">${esc(it.status === 'transit' ? 'In transit' : locName(it.loc))} · ${esc(secName(it.section))} · ${esc(siteName(it.site))}</div><div class="ak-head__c">${statusTag(it)}</div></div></div>`;
-  const details = Section({ title: 'Details' }, KV([['Custodian', `<span class="ak-kvline">${personRow(it.custodian)}${custOk ? LinkBtn('Change', { do: 'enrCustodian', arg: it.id }) : ''}</span>`], ['Condition', Tag(COND[it.cond], CTONE[it.cond] === 'ok' ? 'good' : CTONE[it.cond] === 'warn' ? 'wait' : CTONE[it.cond] === 'bad' ? 'bad' : 'none')],
-    ['Tracking', `${esc(catCode(it))} · ${it.mode === 'batch' ? `Group · ${it.qty} units` : 'Individual'}`], ['Last verified', fd(it.lastVerified)]]));
+  const custOk = isActive(it) && it.status !== 'transit' && can(UI.me, 'prodCustodian', it), p = productOf(it), l = lifeOf(it), due = reviewDue(it);
+  const head = `<div class="ak-head">${IconTile(glyphOf(it.name), { size: 56, tone: 'brand' })}<div class="ak-head__b"><div class="ak-head__t">${esc(it.name)}${it.mode === 'batch' ? ` × ${it.qty}` : ''}</div><div class="ak-head__x">${esc(it.status === 'transit' ? 'In transit' : locName(it.loc))} · ${esc(secName(it.section))} · ${esc(siteName(it.site))}</div></div></div>`;
+  const ctag = c => Tag(COND[c], CTONE[c] === 'ok' ? 'good' : CTONE[c] === 'warn' ? 'wait' : CTONE[c] === 'bad' ? 'bad' : 'none');
+  const details = Section({ title: 'Details' }, KV([['Custodian', `<span class="ak-kvline">${custodianCell(it)}${custOk ? LinkBtn(it.custodian ? 'Change' : 'Assign', { do: 'enrCustodian', arg: it.id }) : ''}</span>`], ['Condition', ctag(it.cond)],
+    ['Tracking', `${esc(catCode(it))} · ${it.mode === 'batch' ? `Group · ${it.qty} units` : 'Individual'}`],
+    ['Received', `${fd(it.received)}<small>${esc([it.ticket, it.mt, it.receivedCond && it.receivedCond !== it.cond && 'Arrived ' + COND[it.receivedCond].toLowerCase()].filter(Boolean).join(' · '))}</small>`], ['Last verified', fd(it.lastVerified)]]));
+  const rv = (it.reviews || [])[0];
+  const lifeS = Section({ title: 'Product and life' }, KV([['Product', LinkBtn(p.id, { go: '#/enrichments/' + p.id })], ['Material', esc(materialOf(it))],
+    ['Usable life', l ? `${lifeText(l)}${it.life ? `<small>${esc(it.lifeWhy || '')}</small>` : ''}` : '<span class="t-mute">Not set</span>'],
+    due && ['Review by', `<span class="ak-inl">${fd(due)}${reviewTag(it)}</span>`],
+    rv && ['Last review', `${rv.outcome === 'fit' ? 'Still fit for use' : REVIEW.replace}<small>${esc([nm(rv.by), ft2(rv.at), rv.note].filter(Boolean).join(' · '))}</small>`]]));
+  const replace = it.replace ? Note({ tone: 'bad', icon: 'alert', title: REVIEW.replace }, `${esc(it.replace.note)}<br>${esc(nm(it.replace.by))} · ${ft2(it.replace.at)}`) : '';
   const issue = r ? Section({ title: 'Open issue' }, KV([['Issue', esc(r.issue)], ['Reported', `${esc(nm(r.by))}<small>${ft2(r.opened)}</small>`], r.notes && ['Notes', esc(r.notes)], r.bioBy && ['Animal use', `${r.bio === 'suitable' ? 'Suitable' : 'Unsuitable'}<small>${esc(nm(r.bioBy))} · ${ft2(r.bioAt)}${r.bioNote ? ' · ' + esc(r.bioNote) : ''}</small>`], r.started && ['Repair', `${esc(r.team)}<small>Started ${ft2(r.started)}</small>`]])) : '';
   const past = (it.repairs || []).length ? Section({ title: 'Earlier issues', count: it.repairs.length }, it.repairs.map(x => `<div class="ak-row"><span class="ak-row__b"><span class="ak-row__t">${esc(x.issue)}</span><span class="ak-row__s">${x.id} · ${fs(x.opened)}${x.done?.notes ? ' · ' + esc(x.done.notes) : ''}</span></span>${Tag(REPAIR_OUT[x.state] || x.state, x.state === 'done' || x.state === 'cleared' ? 'good' : 'none')}</div>`).join('')) : '';
   const tq = openTransferReq(it), tr = it.transfer;
   const transferS = tq || tr ? Section({ title: 'Transfer' }, KV(tq ? [['To', `${esc(tq.toLoc ? locName(tq.toLoc) : secName(tq.toSection))}<small>${esc([tq.toLoc && secName(tq.toSection), siteName(tq.toSite)].filter(Boolean).join(' · '))}</small>`], ['Receiver', personRow(tq.receiver)], tq.ref && ['Reference', esc(tq.ref)], ['Request', LinkBtn(tq.id, { go: `#/${tq.by === UI.me ? 'enrreq' : 'enrappr'}/${tq.id}` })]]
     : [['To', `${esc(secName(tr.to.section))}<small>${esc(siteName(tr.to.site))}</small>`], ['Receiver', personRow(tr.to.custodian)], tr.ref && ['Reference', esc(tr.ref)]])) : '';
-  const assoc = Section({ title: 'Associations' }, KV([['Species', a.species.length ? esc(spNames(a.species).join(', ')) : '<span class="t-mute">None</span>'], ['Animals', a.animals.length ? esc(anNames(a.animals).join(', ')) : '<span class="t-mute">None</span>']]));
+  const assoc = !a.species.length && !a.animals.length ? '' : Section({ title: 'Associations' }, KV([['Species', a.species.length ? esc(spNames(a.species).join(', ')) : '<span class="t-mute">None</span>'], ['Animals', a.animals.length ? esc(anNames(a.animals).join(', ')) : '<span class="t-mute">None</span>']]));
   const pa = productActivities(it);
-  const activities = Section({ title: 'Enrichment activities', count: pa.length }, pa.length ? pa.map(x => { const st = activityStats(x.id); return `<div class="ak-row"><span class="ak-row__b"><span class="ak-row__t">${esc(x.name)}</span><span class="ak-row__s">${esc([ACT_TYPE[x.type], x.sub, x.mins + ' min', x.additives].filter(Boolean).join(' · '))}</span></span>${st.rating != null ? stars(st.rating) : ''}</div>`; }).join('') : EmptyState('No activities use this product', '', 'sparkle'));
+  const activities = !pa.length ? '' : Section({ title: 'Enrichment activities', count: pa.length }, pa.length ? pa.map(x => { const st = activityStats(x.id); return `<div class="ak-row"><span class="ak-row__b"><span class="ak-row__t">${esc(x.name)}</span><span class="ak-row__s">${esc([ACT_TYPE[x.type], x.sub, x.mins + ' min', x.additives].filter(Boolean).join(' · '))}</span></span>${st.rating != null ? stars(st.rating) : ''}</div>`; }).join('') : EmptyState('No activities use this product', '', 'sparkle'));
   const requests = reqs.length ? Section({ title: 'Requests', count: reqs.length }, reqs.map(x => `<button class="ak-row" data-go="#/${x.by === UI.me ? 'enrreq' : 'enrappr'}/${x.id}"><span class="ak-row__b"><span class="ak-row__t">${REQ_KIND[x.kind]}</span><span class="ak-row__s">${x.id} · ${fs(x.submitted || x.at)}</span></span>${reqTag(x)}<span class="ak-row__chev">${ic('right', 18)}</span></button>`).join('')) : '';
   // history: stored events only, newest first, by type
   const ev = lifecycleEvents(it), types = Object.keys(LC_TYPE).filter(t => ev.some(e => e.type === t)), list = ev.filter(e => !lc.type || e.type === lc.type), shown = lc.all ? list : list.slice(0, 12);
@@ -157,7 +189,7 @@ function productPanel(id) {
   const foot = StatusFoot({ ago: ev[0] ? rel(ev[0].at) : '', label: STATUS[it.status] }, main.map((x, i) => Btn(x.t, Object.assign({ kind: i ? 'sec' : 'pri' }, x))).join(''));
   return { close: '#/enrichments', title: it.id, sub: esc(ACT_TYPE[productType(it)] || ''), key: it.id + '|' + lc.type + lc.all,
     right: rest.length ? `<button class="icon-btn" data-do="enrMore" data-arg="${it.id}" aria-label="More">${ic('more', 24)}</button>` : '',
-    html: head + (steps ? Card(Stepper(steps), 'ak-stepcard') : '') + Cols(details + transferS + issue + assoc + activities + requests + past, history), foot };
+    html: head + (steps ? Card(Stepper(steps), 'ak-stepcard') : '') + Cols(replace + details + lifeS + transferS + issue + assoc + activities + requests + past, history), foot };
 }
 DO.enrMore = (id, el) => popover(el, menu(productActions(itemOf(id)).slice(3).map(x => ({ t: x.t, do: x.do, arg: x.arg, go: x.go }))), { w: 240 });
 DO.enrLcType = t => { UI.f.enrLc = { id: route().id, type: t, all: false }; render(); };
@@ -185,16 +217,22 @@ DO.enrReqTab = t => { UI.tab.enrreq = t; render(); };
 VIEWS.enrappr = {
   label: 'Requests', hdr: 'Requests', icon: 'layers', layout: 'full', allow: canApprove, sub: siteSub,
   full() {
-    const tab = UI.tab.enrappr || 'pending', kind = UI.f.enrappr?.kind || '', q = UI.q.enrappr || '';
+    const tab = UI.tab.enrappr || 'pending', kind = UI.f.enrappr?.kind || '', q = UI.q.enrappr || '', dels = deliveries();
     const inTab = x => tab === 'pending' ? x.state === 'pending' : tab === 'dispatch' ? transferStage(x) === 'dispatch' : x.state !== 'pending' && transferStage(x) !== 'dispatch';
     const all = EN().requests.filter(reviewable), scope = all.filter(x => inTab(x) && match(q, x.id, reqTitle(x), nm(x.by), REQ_KIND[x.kind], siteName(x.site)));
     const list = scope.filter(x => !kind || x.kind === kind).sort((x, y) => tab === 'decided' ? (y.decision?.at || '').localeCompare(x.decision?.at || '') : x.submitted.localeCompare(y.submitted));
     const chips = Chips([{ key: '', label: 'All', count: scope.length }, ...Object.entries(REQ_KIND).map(([k, t]) => ({ key: k, label: t, count: scope.filter(x => x.kind === k).length })).filter(x => x.count)], kind, 'enrApprKind');
-    return { title: 'Requests', key: tab + kind, listTitle: 'Approvals', search: 'Search request, product or biologist',
-      tabs: CountTabs([{ key: 'pending', label: 'Pending approval', count: all.filter(x => x.state === 'pending').length }, { key: 'dispatch', label: 'To dispatch', count: all.filter(x => transferStage(x) === 'dispatch').length }, { key: 'decided', label: 'Decided', count: all.filter(x => x.state !== 'pending' && transferStage(x) !== 'dispatch').length }], tab, 'enrApprTab'),
+    const tabs = CountTabs([{ key: 'pending', label: 'Pending approval', count: all.filter(x => x.state === 'pending').length }, { key: 'dispatch', label: 'To dispatch', count: all.filter(x => transferStage(x) === 'dispatch').length },
+      { key: 'receive', label: 'To receive', count: dels.length }, { key: 'decided', label: 'Decided', count: all.filter(x => x.state !== 'pending' && transferStage(x) !== 'dispatch').length }], tab, 'enrApprTab');
+    if (tab === 'receive') {
+      const dl = dels.filter(t => match(q, t.id, t.name, t.mt, t.ws, secName(t.section))).sort((x, y) => x.dispatched.localeCompare(y.dispatched));
+      return { title: 'Requests', key: tab, listTitle: 'Deliveries', search: 'Search delivery, product or reference', searchKey: tab, tabs,
+        html: dl.length ? CardGrid(dl.map(deliveryCard).join('')) : Card(EmptyState('Nothing to receive', '', 'ok')) };
+    }
+    return { title: 'Requests', key: tab + kind, listTitle: 'Approvals', search: 'Search request, product or biologist', searchKey: tab === 'receive' ? 'receive' : 'appr', tabs,
       html: `<div class="ak-chiprow">${chips}</div>` + (list.length ? CardGrid(list.map(x => requestCard(x, '#/enrappr/', true)).join('')) : Card(EmptyState(tab === 'pending' ? 'Nothing to review' : tab === 'dispatch' ? 'Nothing to dispatch' : 'No decisions', '', 'ok'))) };
   },
-  slide(r) { return r.id ? requestPanel(r.id, true, '#/enrappr') : null; },
+  slide(r) { if (r.id && r.id.startsWith('TK-')) { UI.tab.enrappr = 'receive'; return deliveryPanel(r.id); } return r.id ? requestPanel(r.id, true, '#/enrappr') : null; },
 };
 DO.enrApprTab = t => { UI.tab.enrappr = t; render(); };
 DO.enrApprKind = k => { UI.f.enrappr = { kind: k }; render(); };
@@ -347,10 +385,10 @@ DO.enrCustodian = id => {
   closePop(true);
   const it = itemOf(id);
   sheet({
-    title: 'Change custodian',
-    body: f => sumItem(it) + fg('', [cInfo('Current', personRow(it.custodian)), cNav('New custodian', f.to ? nm(f.to) : '', 'to', true), cArea('Note', 'note', f)]),
+    title: it.custodian ? 'Change custodian' : 'Assign custodian',
+    body: f => sumItem(it) + fg('', [it.custodian && cInfo('Current', personRow(it.custodian)), cNav(it.custodian ? 'New custodian' : 'Custodian', f.to ? nm(f.to) : '', 'to', true), cArea('Note', 'note', f)]),
     pickers: { to: () => pickerPage({ title: 'New custodian', key: 'to', options: peopleOpts(p => custodianChoices(it).some(x => x.id === p.id) && p.id !== it.custodian) }) },
-    done: { label: 'Next', confirm: 'Change', ok: f => f.to, review: f => sumItem(it) + reviewOf([['From', esc(nm(it.custodian))], ['To', esc(nm(f.to))], f.note.trim() && ['Note', esc(f.note)]]),
+    done: { label: 'Next', confirm: it.custodian ? 'Change' : 'Assign', ok: f => f.to, review: f => sumItem(it) + reviewOf([it.custodian && ['From', esc(nm(it.custodian))], ['To', esc(nm(f.to))], f.note.trim() && ['Note', esc(f.note)]]),
       run: f => { reassignCustodian(id, UI.me, { to: f.to, note: f.note }); return `${nm(f.to)} is now the custodian`; } },
   }, { to: '', note: '' });
 };
@@ -387,18 +425,22 @@ function enrTasks() {
     if (r.state === 'approved' && can(UI.me, 'repairStart', it)) item(it, 'Repair', 'Start', 'actStartRepair', '');
     if (r.state === 'repair' && can(UI.me, 'repairDone', it)) item(it, 'In repair', 'Complete', 'actCompleteRepair', addDays(r.started, D.config.repairDays));
   });
+  registerTasks(UI.me).filter(t => UI.site === 'all' || t.site === UI.site).forEach(t => out.push(
+    t.kind === 'receipt' ? { k: 'Delivery', t: t.title, s: t.ref, due: t.due, go: '#/enrappr/' + t.ref, do: 'enrReceive', arg: t.ref, btn: 'Receive' }
+      : t.kind === 'assign' ? { k: 'Assign custodian', t: t.title, s: t.ref, due: '', go: '#/enrichments/' + t.ref, do: 'enrCustodian', arg: t.ref, btn: 'Assign' }
+        : { k: 'Life review', t: t.title, s: t.ref, due: t.due, go: '#/enrichments/' + t.ref, do: 'enrLifeReview', arg: t.ref, btn: 'Review' }));
   return out.sort((x, y) => String(x.due || '9').localeCompare(String(y.due || '9')));
 }
 // notifications of this flow only: the biologist's request updates; for supervisors and site managers also transfers and repairs
 function myNotifications() {
-  const keep = role() === 'bio' ? ['enr'] : ['enr', 'transfer', 'repair'];
-  return notifications(UI.me).filter(n => keep.includes(n.kind)).map(n => n.kind === 'enr' ? n : Object.assign({}, n, { href: n.href.replace('#/item/', '#/enrichments/') }));
+  const keep = role() === 'bio' ? ['enr'] : ['enr', 'transfer', 'repair', 'receipt'];
+  return notifications(UI.me).filter(n => keep.includes(n.kind)).map(n => n.kind === 'enr' ? n : Object.assign({}, n, { href: n.href.replace('#/item/', '#/enrichments/').replace('#/receive/', '#/enrappr/') }));
 }
 DO.bell = (a, el) => { const ns = myNotifications(); popover(el.closest('.icon-btn') || el, `<div class="pop__h">Notifications</div>${ns.length ? ns.map(notifRow).join('') : empty('bell', 'No notifications', '', true)}`, { w: 380 }); };
 // Home: task tiles by kind (tap to filter), then To do and Updates (anything already in To do is left out)
-const HOME_TILES = { Review: 'newitem', Dispatch: 'truck', Receive: 'receive', 'Animal-use check': 'paw', 'Decide repair': 'repairs', Repair: 'repairs', 'In repair': 'repairs', Draft: 'newitem', Rejected: 'x' };
-const homeGroup = k => ['Decide repair', 'Repair', 'In repair'].includes(k) ? 'Repairs' : k === 'Draft' || k === 'Rejected' ? 'My requests' : k;
-const homeTiles = () => role() === 'bio' ? [['Animal-use check', 'paw', 'Animal-use checks'], ['My requests', 'newitem', 'Drafts and rejected']] : [['Review', 'newitem', 'To review'], ['Dispatch', 'truck', 'To dispatch'], ['Receive', 'receive', 'To receive'], ['Repairs', 'repairs', 'Repairs']];
+const homeGroup = k => ['Decide repair', 'Repair', 'In repair'].includes(k) ? 'Repairs' : k === 'Draft' || k === 'Rejected' ? 'My requests' : ['Delivery', 'Assign custodian'].includes(k) ? 'Receive' : k === 'Life review' ? 'Life reviews' : k;
+const homeTiles = () => role() === 'bio' ? [['Animal-use check', 'paw', 'Animal-use checks'], ['Life reviews', 'clock', 'Life reviews'], ['My requests', 'newitem', 'Drafts and rejected']]
+  : [['Review', 'newitem', 'To review'], ['Dispatch', 'truck', 'To dispatch'], ['Receive', 'receive', 'To receive'], ['Repairs', 'repairs', 'Repairs'], ['Life reviews', 'clock', 'Life reviews']];
 const taskRowK = t => `<div class="ak-row"><button class="ak-row__b" data-go="${t.go}"><span class="ak-row__t">${esc(t.t)}</span><span class="ak-row__s">${esc(t.k)} · ${esc(t.s)}</span></button><span class="ak-row__e">${dueTag(t.due)}${t.do ? Btn(t.btn, { small: true, do: t.do, arg: t.arg }) : Btn(t.btn, { small: true, go: t.go })}</span></div>`;
 VIEWS.today = {
   label: 'Home', hdr: 'Home', icon: 'today', layout: 'full', sub: siteSub,

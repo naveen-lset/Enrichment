@@ -31,5 +31,6 @@
   setInterval(() => { $('#clock').textContent = nowIs().slice(11, 16); }, 1000);
   $('#sdate').textContent = `${dow(nowIs()).slice(0, 3)} ${fs(nowIs())}`;
   orient();
+  trail();
   render();
 })();

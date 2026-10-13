@@ -6,7 +6,7 @@ Last session: 12 Oct 2026. Repository: https://github.com/naveen-lset/Enrichment
 ```sh
 cd /Users/naveen/Enrichment/enrichment-tablet
 npm start            # python3 -m http.server 8834 → http://localhost:8834/
-npm test             # 55 rule tests: 26 PRD + 8 activity + 12 Enrichments + 9 lifecycle (Node 20+)
+npm test             # 64 rule tests: 26 PRD + 8 activity + 12 Enrichments + 9 lifecycle + 9 register (Node 20+)
 npm run test:ui      # UI checks at 6 iPad sizes, ~10 min (server running, Google Chrome installed)
 npm run deploy       # build dist/ and publish to Cloudflare Pages (wrangler login saved on the owner's Mac)
 ```
@@ -41,6 +41,9 @@ npm run deploy       # build dist/ and publish to Cloudflare Pages (wrangler log
   - **Click-through check**: every flow (27) was tapped through in headless Chrome, landscape and portrait, all passing (script kept outside the repo).
   - Storage key `antz-enrichment-ipad-5`.
 - **Minimal navigation (12 Oct, owner)**: bottom tabs Home · Enrichments · Requests replace the sidebar; roles Biologist · Supervisor · Site manager only; Home = role-scoped To do + Updates; repairability check removed (`noRepairCheck()`). Other modules stay in code, not in navigation. Docs §14. Storage key `antz-enrichment-ipad-4`.
+
+- **Item register (13 Oct, from the *Actual Business Requirements* brief §1–9)**: product definitions (`D.products`, `EP-` IDs) separate from physical items; Enrichments lists items grouped under their product, available first, with filters for status (incl. Unavailable), condition, usable life, material, custodian (incl. Awaiting assignment), location. Receipt inside Requests › To receive (`receiveDelivery`: confirm or define the product, custodian optional → Awaiting assignment). Usable life per product with item override, review date from the received date, Life review (still fit / replace), never auto-changes status. Assign for use (enclosure + optional animals). Rules `src/model/register.js`, screens `src/ipad/register-views.js`, tests `tests/register.test.mjs`, docs §16. Storage key `antz-enrichment-ipad-6`. The brief's §10 onward was cut off: still to come.
+- **Back arrow and polish (13 Oct)**: the panel back arrow now returns to the screen the record was opened from (`TRAIL` / `DO.back` in core.js; the panel's own list only when opened by link). Enrichments list: one white card per product (header = definition and available count, then its items as one-line rows, 5 then *Show all*); list layout = one flat list; item panel shows status once (footer), facts split into Details and Product and life, empty Associations / Activities cards hidden. `npm run test:ui` can stall in headless Chrome when all sizes run in one process (it did on the 12 Oct commit too); one size per run passes. Local files load with `?v=` in index.html: bump it after every change, or the browser shows a cached copy.
 
 ## User's rules
 Keep it minimal (3 tabs, 3 roles; ask before adding modules, roles or nav entries) · follow Components.md · no helper text in the UI · Antz colour tokens only (no hex outside `kit/tokens.css`) · show each fact once · one main action per footer · prototype-only behaviour labelled in docs, not in the UI · full screen, no iPad frame.

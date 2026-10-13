@@ -3,7 +3,7 @@
 
 /* ============ state ============ */
 const UI = { me: 'P-RAVI', site: 'S-MAIN', o: 'landscape', sb: true, peek: false, q: {}, f: {}, tab: {}, labels: [], dsel: '' };
-const STORE = 'antz-enrichment-ipad-5';
+const STORE = 'antz-enrichment-ipad-6';
 const $ = (s, r = document) => r.querySelector(s);
 const $$ = (s, r = document) => [...r.querySelectorAll(s)];
 const VIEWS = {}, DO = {}, IN = {};
@@ -16,7 +16,7 @@ function load() {
   } catch (e) { /* ignore */ }
   return false;
 }
-function fresh() { boot(); workSeed(); activitySeed(); productSeed(); setNow(NOW_DEFAULT); }
+function fresh() { boot(); workSeed(); activitySeed(); productSeed(); registerSeed(); setNow(NOW_DEFAULT); }
 const snapshot = () => ({ d: JSON.stringify(D), now: nowIs() });
 const restore = s => useData(JSON.parse(s.d), s.now);
 // each action moves the demo clock on a few minutes, so the history keeps its order and the status bar clock runs
@@ -104,7 +104,16 @@ const personRow = id => `<span style="display:inline-flex;align-items:center;gap
 /* ============ router ============ */
 function route() { const [v = 'today', id = '', sub = ''] = location.hash.replace(/^#\/?/, '').split('/').map(decodeURIComponent); return { v, id, sub }; }
 function go(h) { if (location.hash === h) render(); else location.hash = h; }
-window.addEventListener('hashchange', () => { closePop(true); if (UI.peek) setPeek(false); render(); });
+// the trail of screens visited, so the back arrow returns to the screen the record was opened from (Home, a product, a
+// request, a delivery), not to a fixed list; with no trail (a link opened directly) it falls back to the panel's own list
+const TRAIL = [];
+function trail() {
+  const h = location.hash || '#/today';
+  if (TRAIL[TRAIL.length - 2] === h) TRAIL.pop(); else if (TRAIL[TRAIL.length - 1] !== h) TRAIL.push(h);
+  if (TRAIL.length > 50) TRAIL.shift();
+}
+DO.back = fallback => { const prev = TRAIL[TRAIL.length - 2]; go(prev && prev !== location.hash ? prev : fallback); };
+window.addEventListener('hashchange', () => { trail(); closePop(true); if (UI.peek) setPeek(false); render(); });
 
 /* ============ painting ============ */
 // paint(el, html, key) — a new key replaces the region and plays the enter motion; the same key only swaps changed HTML (scroll kept)
@@ -289,7 +298,7 @@ DO.who = () => {
   sheet({ title: 'Viewing as', alt: [{ label: 'Demo guide', do: 'guide' }, { label: 'Reset demo data', do: 'reset', kind: 'danger' }],
     body: () => Card(ppl.map(p => PickRow({ title: p.name, sub: ROLE_SHORT[p.role] + (p.sections.length ? ' · ' + p.sections.map(secName).join(', ') : ''), on: p.id === UI.me, do: 'signIn', arg: p.id, lead: Avatar(p.id, 36) })).join(''), 'ak-picks') });
 };
-DO.signIn = id => { UI.me = id; UI.site = person(id).sites[0]; closePop(); if (SH) closeSheet(); save(); go('#/today'); toast(`Signed in as ${nm(id)}`, { icon: 'user' }); };
+DO.signIn = id => { TRAIL.length = 0; UI.me = id; UI.site = person(id).sites[0]; closePop(); if (SH) closeSheet(); save(); go('#/today'); toast(`Signed in as ${nm(id)}`, { icon: 'user' }); };
 DO.reset = () => { closePop(); if (SH) closeSheet(); try { localStorage.removeItem(STORE); } catch (e) { /* ignore */ } fresh(); save(); go('#/today'); toast('Demo data reset', { icon: 'reset' }); };
 
 /* ============ popovers + menus ============ */
@@ -483,8 +492,8 @@ function spotRows(q) {
   const acs = A().activities.filter(a => match(q, a.id, a.name, a.sub)).slice(0, 4);
   const sps = A().species.filter(s => match(q, s.name, s.sci)).slice(0, 4);
   const out = [
-    its.length && `<div class="spot__g">Items</div>${menu(its.map(it => ({ icon: glyphOf(it.name), t: it.name, s: `${it.id} · ${STATUS[it.status]} · ${where(it)}`, go: '#/register/' + it.id })))}`,
-    tks.length && `<div class="spot__g">Deliveries</div>${menu(tks.map(t => ({ icon: 'receipts', t: t.name, s: `${t.id} · ${t.status === 'dispatched' ? 'Waiting' : 'Received'}`, go: '#/receipts/' + t.id })))}`,
+    its.length && `<div class="spot__g">Items</div>${menu(its.map(it => ({ icon: glyphOf(it.name), t: it.name, s: `${it.id} · ${STATUS[it.status]} · ${where(it)}`, go: (it.product ? '#/enrichments/' : '#/register/') + it.id })))}`,
+    tks.length && `<div class="spot__g">Deliveries</div>${menu(tks.map(t => ({ icon: 'receipts', t: t.name, s: `${t.id} · ${t.status === 'dispatched' ? 'Waiting' : 'Received'}`, go: '#/enrappr/' + t.id })))}`,
     dps.length && `<div class="spot__g">Disposals</div>${menu(dps.map(d => ({ icon: 'disposals', t: itemOf(d.item).name, s: `${d.id} · ${DSTATE[d.state][0]}`, go: '#/disposals/' + d.id })))}`,
     acs.length && `<div class="spot__g">Activities</div>${menu(acs.map(a => ({ t: a.name, s: `${a.id} · ${ACT_TYPE[a.type]}`, go: '#/activities/' + a.id })))}`,
     sps.length && `<div class="spot__g">Species</div>${menu(sps.map(s => ({ t: s.name, s: s.sci, go: '#/species/' + s.id })))}`,

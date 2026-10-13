@@ -39,9 +39,9 @@ const Fab = (label, o) => `<button class="ak-fab" aria-label="${esc(label)}" ${a
 // RecordCard({icon, tileTone, heading, meta, text, chips, band, label, when, go, on}) — Figma "All Request cards"
 // bands: wait · yours · approved · progress · completed · rejected · cancelled · none
 const RecordCard = o => `<button class="ak-rec ${o.on ? 'on' : ''}" ${akAct(o)}>
-  <span class="ak-rec__top">${IconTile(o.icon, { size: 40, tone: o.tileTone || 'soft' })}<span class="ak-rec__hb"><span class="ak-rec__h">${esc(o.heading)}</span><span class="ak-rec__m">${o.meta}</span></span></span>
+  <span class="ak-rec__top">${o.icon ? IconTile(o.icon, { size: 40, tone: o.tileTone || 'soft' }) : ''}<span class="ak-rec__hb"><span class="ak-rec__h">${esc(o.heading)}</span><span class="ak-rec__m">${o.meta}</span></span></span>
   ${o.text ? `<span class="ak-rec__x">${o.text}</span>` : ''}${o.chips ? `<span class="ak-rec__c">${o.chips}</span>` : ''}
-  <span class="ak-rec__band ak-band--${o.band || 'none'}"><span>${esc(o.label)}</span>${o.when ? `<span class="ak-rec__w">${o.when}</span>` : ''}</span></button>`;
+  <span class="ak-rec__sp"></span><span class="ak-rec__band ak-band--${o.band || 'none'}"><span>${esc(o.label)}</span>${o.when ? `<span class="ak-rec__w">${o.when}</span>` : ''}</span></button>`;
 // Timeline([{title, who, at, text, tag}]) — newest first, the newest entry marked green
 const Timeline = events => `<div class="ak-tl">${events.map((e, i) => `<div class="ak-tl__e ${i ? '' : 'new'}"><span class="ak-tl__d"></span><div class="ak-tl__b"><div class="ak-tl__t">${esc(e.title)}${e.tag ? ' ' + e.tag : ''}</div>${e.text ? `<div class="ak-tl__x">${e.text}</div>` : ''}<div class="ak-tl__m">${esc(e.who)} · ${e.at}</div></div></div>`).join('')}</div>`;
 
@@ -66,8 +66,8 @@ const DecisionButtons = o => `<div class="ak-decide"><button class="ak-dec ak-de
 const ResultBanner = (kind, text) => `<div class="ak-result ak-result--${kind}">${ic(kind === 'approved' ? 'check' : 'x', 22)}<span>${esc(text)}</span></div>`;
 
 /* ---------- frame ---------- */
-// AppBar({title, sub, back, right}) — back is a route
-const AppBar = o => `<div class="ak-bar">${o.back ? `<button class="ak-bar__back" data-go="${o.back}" aria-label="Back">${ic('left', 24)}</button>` : ''}<div class="ak-bar__b"><div class="ak-bar__t">${esc(o.title)}</div>${o.sub ? `<div class="ak-bar__s">${o.sub}</div>` : ''}</div><div class="ak-bar__r">${o.right || ''}</div></div>`;
+// AppBar({title, sub, back, right}) — back returns to the previous screen; `back` is the route used when there is none
+const AppBar = o => `<div class="ak-bar">${o.back ? `<button class="ak-bar__back" data-do="back" data-arg="${o.back}" aria-label="Back">${ic('left', 24)}</button>` : ''}<div class="ak-bar__b"><div class="ak-bar__t">${esc(o.title)}</div>${o.sub ? `<div class="ak-bar__s">${o.sub}</div>` : ''}</div><div class="ak-bar__r">${o.right || ''}</div></div>`;
 // CountTabs([{key, label, count}], value, act) — the count above the label, a sliding underline
 const CountTabs = (tabs, value, act) => { const i = Math.max(0, tabs.findIndex(t => t.key === value));
   return `<div class="ak-ctabs" style="--n:${tabs.length};--i:${i}">${tabs.map(t => `<button class="ak-ctab ${t.key === value ? 'on' : ''}" data-do="${act}" data-arg="${esc(t.key)}" aria-pressed="${t.key === value}"><b>${t.count ?? ''}</b><span>${esc(t.label)}</span></button>`).join('')}<span class="ak-ctabs__u"></span></div>`; };
